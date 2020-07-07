@@ -1,4 +1,4 @@
-@prefix : <http://vivo.wheatinitiative.org/ontology/adminapp/> .
+@prefix : <http://vivoweb.org/ontology/adminapp/> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
@@ -139,7 +139,7 @@ _:genid1 a owl:Restriction ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:customEntryFormAnnot "org.wheatinitiative.vivo.adminapp.form.generator.MergesOnObjectPropertyGenerator"^^xsd:string ;
+	vitro:customEntryFormAnnot "org.vivoweb.adminapp.form.generator.MergesOnObjectPropertyGenerator"^^xsd:string ;
 	rdfs:range owl:ObjectProperty .
 
 #### Hack

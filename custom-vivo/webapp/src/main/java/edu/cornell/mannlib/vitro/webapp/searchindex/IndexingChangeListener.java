@@ -1,4 +1,4 @@
-/* $This file is distributed under the terms of the license in /doc/license.txt$ */
+/* $This file is distributed under the terms of the license in LICENSE$ */
 
 package edu.cornell.mannlib.vitro.webapp.searchindex;
 
@@ -6,7 +6,6 @@ import static edu.cornell.mannlib.vitro.webapp.modules.searchIndexer.SearchIndex
 import static edu.cornell.mannlib.vitro.webapp.modules.searchIndexer.SearchIndexer.Event.Type.START_REBUILD;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,17 +13,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.jena.riot.RiotReader;
-import org.apache.jena.riot.tokens.Tokenizer;
-import org.apache.jena.riot.tokens.TokenizerFactory;
-
-import com.hp.hpl.jena.graph.Triple;
-import com.hp.hpl.jena.rdf.listeners.StatementListener;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelChangedListener;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.vocabulary.OWL;
+import org.apache.jena.rdf.listeners.StatementListener;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelChangedListener;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.vocabulary.OWL;
 
 import edu.cornell.mannlib.vitro.webapp.dao.jena.event.EditEvent;
 import edu.cornell.mannlib.vitro.webapp.modules.searchIndexer.SearchIndexer;
@@ -35,27 +28,27 @@ import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread;
  * When a change is heard, wait for an interval to see if more changes come in.
  * When changes stop coming in for a specified interval, send what has
  * accumulated.
- * 
+ *
  * When the SearchIndexer pauses, stop sending changes until the SearchIndexer
  * unpauses.
- * 
+ *
  * If the SearchIndexer begins a rebuild, discard any changes that we had
  * accumulated. They will be accomplished by the rebuild.
- * 
+ *
  * -----------------------
- * 
+ *
  * When a changed statement is received, it should not be added to the list of
  * pending changes. The elements of the statement hold references to the model
  * in which they were created, as well as to other structures.
- * 
+ *
  * Thus, an action that produces many changes to the models could become
  * unscalable.
- * 
+ *
  * To avoid this, we use the ResourceFactory to create a "sanitized" statement
  * which is semantically equivalent to the original, and add that to the list
  * instead. The original statement is released.
  */
-public class IndexingChangeListener extends StatementListener 
+public class IndexingChangeListener extends StatementListener
         implements ModelChangedListener, SearchIndexer.Listener {
 	private static final Log log = LogFactory
 			.getLog(IndexingChangeListener.class);
@@ -63,7 +56,6 @@ public class IndexingChangeListener extends StatementListener
 	private final SearchIndexer searchIndexer;
 	private final Ticker ticker;
 	private volatile boolean rebuildScheduled;
-    private final Model defaultModel;
 
 	/** All access to the list must be synchronized. */
 	private final List<Statement> changes;
@@ -71,14 +63,13 @@ public class IndexingChangeListener extends StatementListener
 	public IndexingChangeListener(SearchIndexer searchIndexer) {
 		this.searchIndexer = searchIndexer;
 		this.ticker = new Ticker();
-        this.defaultModel = ModelFactory.createDefaultModel();
 		this.changes = new ArrayList<>();
 
 		searchIndexer.addListener(this);
 	}
 
 	private synchronized void noteChange(Statement stmt) {
-        changes.add(stmt); 
+        changes.add(stmt);
 		ticker.start();
 	}
 
@@ -109,7 +100,7 @@ public class IndexingChangeListener extends StatementListener
 
 	@Override
 	public void addedStatement(Statement stmt) {
-	        // WheatVIVO mod : ignore sameAs
+	        // adminapp mod : ignore sameAs
 		if(OWL.sameAs.equals(stmt.getPredicate())) {
                     return;
 		}
@@ -120,7 +111,7 @@ public class IndexingChangeListener extends StatementListener
 
 	@Override
 	public void removedStatement(Statement stmt) {
-	        // WheatVIVO mod : ignore sameAs
+	        // adminapp mod : ignore sameAs
 		if(OWL.sameAs.equals(stmt.getPredicate())) {
                     return;
 		}
@@ -181,17 +172,17 @@ public class IndexingChangeListener extends StatementListener
 	/**
 	 * The ticker will ask for a response after two ticks, unless it is started
 	 * again before the second one.
-	 * 
+	 *
 	 * <pre>
 	 * On a call to start():
 	 *    Start the timer unless it is already running.
 	 *    Reset the hasOneTick flag.
-	 *    
+	 *
 	 * When the timer expires:
 	 *    If the timer hasOneTick, we're done: call for a response.
 	 *    Otherwise, record that it hasOneTick, and keep the timer running.
 	 * </pre>
-	 * 
+	 *
 	 * All methods are synchronized on the enclosing IndexingChangeListener.
 	 */
 	private class Ticker {

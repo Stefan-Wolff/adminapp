@@ -1,4 +1,4 @@
-@prefix : <http://vivo.wheatinitiative.org/ontology/adminapp/> .
+@prefix : <http://vivoweb.org/ontology/adminapp/> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
@@ -6,7 +6,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix vitro: <http://vitro.mannlib.cornell.edu/ns/vitro/0.7#> .
 
-<http://vivo.wheatinitiative.org/ontology/adminapp/> a owl:Ontology ;
+<http://vivoweb.org/ontology/adminapp/> a owl:Ontology ;
         rdfs:label "Admin Application Ontology"@en .
 # 
 # 
@@ -17,7 +17,7 @@
 # #################################################################
 # 
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/deploymentURI
+# http://vivoweb.org/ontology/adminapp/deploymentURI
 
 :deploymentURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -29,7 +29,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "deployment URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/endpointURI
+# http://vivoweb.org/ontology/adminapp/endpointURI
 
 :endpointURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -42,7 +42,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "endpoint URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/endpointUpdateURI
+# http://vivoweb.org/ontology/adminapp/endpointUpdateURI
 
 :endpointUpdateURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -55,7 +55,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "endpoint update URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/graphURI
+# http://vivoweb.org/ontology/adminapp/graphURI
 
 :graphURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -67,7 +67,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "graph URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/password
+# http://vivoweb.org/ontology/adminapp/password
 
 :password a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -79,7 +79,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "password"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/priority
+# http://vivoweb.org/ontology/adminapp/priority
 
 :priority a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -91,7 +91,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "priority"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/serviceURI
+# http://vivoweb.org/ontology/adminapp/serviceURI
 
 :serviceURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -103,7 +103,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "service URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/username
+# http://vivoweb.org/ontology/adminapp/username
 
 :username a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -155,7 +155,7 @@
 # #################################################################
 # 
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/DataSource
+# http://vivoweb.org/ontology/adminapp/DataSource
 
 :DataSource a owl:Class ;
 	rdfs:subClassOf _:genid1 .
@@ -191,7 +191,7 @@ _:genid4 a owl:Restriction ;
         a owl:Class ; rdfs:subClassOf :DataSource .
 
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/SparqlEndpoint
+# http://vivoweb.org/ontology/adminapp/SparqlEndpoint
 
 :SparqlEndpoint a owl:Class ;
 	rdfs:subClassOf _:genid5 .

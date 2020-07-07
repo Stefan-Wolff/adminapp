@@ -21,7 +21,7 @@
         vitro:prohibitedFromUpdateBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
 
-<http://vivo.wheatinitiative.org/ontology/adminapp/MergeRuleAtom>
+<http://vivoweb.org/ontology/adminapp/MergeRuleAtom>
         <http://www.w3.org/2000/01/rdf-schema#label>
                 "Merge Rule Pattern"@en-US ;
         vitro:hiddenFromDisplayBelowRoleLevelAnnot
@@ -32,7 +32,7 @@
         vitro:prohibitedFromUpdateBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
 
-<http://vivo.wheatinitiative.org/ontology/adminapp/mergeRuleClass>
+<http://vivoweb.org/ontology/adminapp/mergeRuleClass>
         <http://www.w3.org/2000/01/rdf-schema#label>
                 "merges individuals of class"@en-US ;
         vitro:hiddenFromDisplayBelowRoleLevelAnnot
@@ -43,7 +43,7 @@
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
         vitro:selectFromExistingAnnot  true .
 
-<http://vivo.wheatinitiative.org/ontology/adminapp/MergeRule>
+<http://vivoweb.org/ontology/adminapp/MergeRule>
         <http://www.w3.org/2000/01/rdf-schema#label>
                 "Merge Rule"@en-US ;
         vitro:hiddenFromDisplayBelowRoleLevelAnnot
@@ -54,11 +54,11 @@
         vitro:prohibitedFromUpdateBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
 
-<http://vivo.wheatinitiative.org/ontology/ExternalToWheat>
+<http://vivoweb.org/ontology/ExternalToAdminapp>
         a                        <http://www.w3.org/2002/07/owl#Class> ;
         <http://www.w3.org/2000/01/rdf-schema#label>
-                "External to Wheat"@en-US ;
-        obo:IAO_0000115          "for excluding non-wheat-related things from the search index"^^<http://www.w3.org/2001/XMLSchema#string> ;
+                "External to adminapp"@en-US ;
+        obo:IAO_0000115          "for excluding non-adminapp-related things from the search index"^^<http://www.w3.org/2001/XMLSchema#string> ;
         vitro:displayLimitAnnot  -1 ;
         vitro:displayRankAnnot   -1 ;
         vitro:hiddenFromDisplayBelowRoleLevelAnnot

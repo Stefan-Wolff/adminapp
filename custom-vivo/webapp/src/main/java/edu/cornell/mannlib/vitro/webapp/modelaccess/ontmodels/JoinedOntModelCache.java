@@ -2,25 +2,22 @@
 
 package edu.cornell.mannlib.vitro.webapp.modelaccess.ontmodels;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
-import com.hp.hpl.jena.ontology.OntModel;
+import org.apache.jena.ontology.OntModel;
 
 import edu.cornell.mannlib.vitro.webapp.modelaccess.ModelNames;
 import edu.cornell.mannlib.vitro.webapp.utils.logging.ToString;
 
 /**
  * Use two OntModelCaches as one.
- * 
+ *
  * If both caches contain models with the same name, a warning will be written
  * to the log, and the model from the primary cache will be used.
- * 
+ *
  * Any new models will be created on the primary cache.
  */
 public class JoinedOntModelCache implements OntModelCache {
@@ -32,14 +29,6 @@ public class JoinedOntModelCache implements OntModelCache {
 	public JoinedOntModelCache(OntModelCache primary, OntModelCache secondary) {
 		this.primary = primary;
 		this.secondary = secondary;
-
-// extremely expensive with TDB : see below
-//		Set<String> duplicateNames = new HashSet<String>(primary.getModelNames());
-//		duplicateNames.retainAll(secondary.getModelNames());
-//		if (!duplicateNames.isEmpty()) {
-//			log.warn("These model names appear in both caches: "
-//					+ duplicateNames);
-//		}
 	}
 
     protected boolean isKnownSecondaryModel(String name) {
