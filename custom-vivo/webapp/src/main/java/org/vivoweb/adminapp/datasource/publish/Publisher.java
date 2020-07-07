@@ -36,8 +36,8 @@ import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
- * A data source that takes a WheatVIVO admin app's SPARQL endpoint as an input
- * and publishes data to a public WheatVIVO's endpoint, rewriting individuals
+ * A data source that takes a admin app's SPARQL endpoint as an input
+ * and publishes data to a public VIVO endpoint, rewriting individuals
  * to use the highest-priority URI and dropping lower-priority duplicate values
  * for functional properties
  * @author Brian Lowe
