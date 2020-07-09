@@ -1,7 +1,19 @@
 ${stylesheets.add('<link rel="stylesheet" href="${urls.theme}/css/adminapp.css" />')}
+${stylesheets.add('<meta http-equiv="refresh" content="60">')}
 
-<h2>Data Sources
-<img class="add-individual" src="${urls.images}/individual/addIcon.gif" alt="${i18n().add}" /></a>
+<#assign pageTitle = "Data Sources">
+<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FTurtleDataIngest">
+
+<#if type?has_content && type == "merge">
+	<#assign pageTitle = "Merge Configurations">
+	<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataMerge">
+<#elseif type?has_content && type == "publish">
+	<#assign pageTitle = "Publish Configurations">
+	<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataPublish">
+</#if>
+
+<h2>${pageTitle}
+<a href="${urls.base}/editForm?controller=Entity&VClassURI=${addURI}"><img class="add-individual" src="${urls.images}/individual/addIcon.gif" alt="${i18n().add}" /></a>
 </h2>
 
 <table class="adminTable">
@@ -9,11 +21,12 @@ ${stylesheets.add('<link rel="stylesheet" href="${urls.theme}/css/adminapp.css" 
         <tr>
 	    <td>Priority</td>
 	    <td></td>
-            <td>Source</td>
+        <td>Configuration</td>
 	    <td>Last updated</td>
 	    <td>Next update</td>
+	    <td>% done</td>
+	    <td>Last records</td>
 	    <td>Status</td>
-	    <td><!-- edit controls --></td>
 	</tr>
     </thead>
     <tbody>
@@ -22,8 +35,8 @@ ${stylesheets.add('<link rel="stylesheet" href="${urls.theme}/css/adminapp.css" 
 	    <td>${dataSource?index}</td>
             <td>
 	        <form method="post" action="${urls.base}/invokeService">
-		    <input type="hidden" name="uri" value="${dataSource.configuration.URI}"/>
-		    <#if type?hasContent>
+		    <input type="hidden" name="uri" value="${dataSource.URI}"/>
+		    <#if type?has_content>
 		        <input type="hidden" name="type" value="${type}"/>
 		    </#if>
                     <#if dataSource.status.running>
@@ -34,40 +47,45 @@ ${stylesheets.add('<link rel="stylesheet" href="${urls.theme}/css/adminapp.css" 
 		</form>
 	    </td>
             <td>
-	        <a href="${urls.base}/individual?uri=${dataSource.configuration.URI?url}">
-		    <#if dataSource.configuration.name??>
-		        ${dataSource.configuration.name!}
+	        <a href="${urls.base}/individual?uri=${dataSource.URI?url}">
+		    <#if dataSource.name??>
+		        ${dataSource.name!}
 		    <#else>
-		        ${dataSource.configuration.URI}
+		        ${dataSource.URI}
 	            </#if>
 		</a>
 	    </td>
 	    <td>
-	        <#if dataSource.status.lastUpdate??>
-	            ${dataSource.status.lastUpdate?datetime}
-		<#else>
+	        <#if dataSource.lastUpdate??>
+	            ${dataSource.lastUpdate?replace("T", " ")}
+			<#else>
 		    ---
 	        </#if>
             </td>
 	    <td>
-	        <#if dataSource.configuration.nextUpdate??>
-	            ${dataSource.configuration.nextUpdate?datetime}
-		<#else>
+	        <#if dataSource.nextUpdate??>
+	            ${dataSource.nextUpdate?replace("T", " ")}
+			<#else>
 		    ---
 	        </#if>
-            </td>
+        </td>
+	    <td>${dataSource.status.completionPercentage}</td>
+	    <td>
+	    	<#if dataSource.status.running>
+	    		...
+	    	<#else>
+	    		${dataSource.status.totalRecords}
+	    	</#if>
+	    </td>
 	    <td>
 	        <#if dataSource.status.running>
-		    <strong class="statusOK">RUNNING</strong></td>
-		<#else>
-                    <strong class="statusError">IDLE</strong></td>
-		</#if>
-            </td>
-	    <td>
-	        <a href="${urls.base}/individual?uri=${dataSource.configuration.URI?url}"><img class="edit-individual" src="${urls.images}/individual/editIcon.gif" alt="${i18n().edit_entry}" /></a>
-                <img class="delete-individual" src="${urls.images}/individual/deleteIcon.gif" alt="${i18n().delete_entry}" /></a>
-	    </td>
-
+		    	<span class="statusRunning">RUNNING</span>
+		    <#elseif !dataSource.status.statusOk>
+                <span class="statusError" title="${dataSource.status.message!}">ERROR</span>
+			<#else>
+                <span class="statusIdle">IDLE</span>
+			</#if>
+        </td>
 	</tr>
     </#list>
     </tbody>

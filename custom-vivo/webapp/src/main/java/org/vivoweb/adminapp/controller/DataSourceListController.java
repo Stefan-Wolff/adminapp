@@ -7,12 +7,11 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.vivoweb.adminapp.datasource.DataSourceDescription;
-import org.vivoweb.adminapp.datasource.DataSourceStatus;
+import org.apache.jena.rdf.model.Model;
+import org.vivoweb.adminapp.datasource.DataSourceScheduler;
+import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.RDFServiceModelConstructor;
 import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
-import org.vivoweb.adminapp.datasource.service.DataSourceDescriptionSerializer;
-import org.vivoweb.adminapp.datasource.util.http.HttpUtils;
 
 import edu.cornell.mannlib.vitro.webapp.auth.permissions.SimplePermission;
 import edu.cornell.mannlib.vitro.webapp.auth.requestedAction.AuthorizationRequest;
@@ -20,6 +19,7 @@ import edu.cornell.mannlib.vitro.webapp.controller.VitroRequest;
 import edu.cornell.mannlib.vitro.webapp.controller.freemarker.FreemarkerHttpServlet;
 import edu.cornell.mannlib.vitro.webapp.controller.freemarker.responsevalues.ResponseValues;
 import edu.cornell.mannlib.vitro.webapp.controller.freemarker.responsevalues.TemplateResponseValues;
+import edu.cornell.mannlib.vitro.webapp.modelaccess.ModelAccess;
 
 /**
  * A controller for retrieving for display lists of available 
@@ -29,11 +29,8 @@ import edu.cornell.mannlib.vitro.webapp.controller.freemarker.responsevalues.Tem
  */
 public class DataSourceListController extends FreemarkerHttpServlet {
 
-    private static final String LIST_DATA_SOURCES_TEMPLATE = 
-            "listDataSources.ftl";
-    private static final Log log = LogFactory.getLog(
-            DataSourceListController.class);
-    private static HttpUtils httpUtils = new HttpUtils();
+    private static final String LIST_DATA_SOURCES_TEMPLATE = "listDataSources.ftl";
+    private static final Log log = LogFactory.getLog(DataSourceListController.class);
     protected static final AuthorizationRequest REQUIRED_ACTIONS = 
             SimplePermission.USE_MISCELLANEOUS_ADMIN_PAGES.ACTION;
     
@@ -43,63 +40,37 @@ public class DataSourceListController extends FreemarkerHttpServlet {
     }
     
     @Override
-    protected ResponseValues processRequest(VitroRequest vreq) 
-            throws IOException {
-        DataSourceDao dsm = new DataSourceDao(
-                new RDFServiceModelConstructor(vreq.getRDFService()));
+    protected ResponseValues processRequest(VitroRequest vreq) throws IOException {
+        Model aboxModel = ModelAccess.on(this.getServletContext()).getOntModelSelector().getABoxModel();
+        DataSourceDao dsm = new DataSourceDao(new RDFServiceModelConstructor(vreq.getRDFService()), aboxModel);
         String type = vreq.getParameter("type");
         log.debug("Data source type: " + type);
-        List<DataSourceDescription> sources;
+        
+        List<DataTask> sources;
         if("merge".equals(type)) {
-            sources = dsm.listMergeDataSources(); 
+            sources = dsm.listMergeTasks();
         } else if("publish".equals(type)) {
-            sources = dsm.listPublishDataSources();
+            sources = dsm.listPublishTasks();
         } else {
-            sources = dsm.listDataSources();
-        }        
+            sources = dsm.listIngestTasks();
+        }
+        
+        DataSourceScheduler scheduler = DataSourceScheduler.getInstance(getServletContext());
+        for (DataTask task : sources) {
+            String dataSourceURI = task.getURI();
+            task.getStatus().setRunning(scheduler.isRunning(dataSourceURI));
+        }
+        
         return doListDataSources(sources, vreq);
     }    
     
-    private TemplateResponseValues doListDataSources(
-            List<DataSourceDescription> descriptions, VitroRequest vreq) 
+    private TemplateResponseValues doListDataSources(List<DataTask> tasks, VitroRequest vreq) 
                     throws IOException {
         Map<String, Object> data = new HashMap<String, Object>();
-        descriptions = pollStatus(descriptions);
-        data.put("dataSources", descriptions);
+        data.put("dataSources", tasks);
         data.put("type", vreq.getParameter("type"));
-        return new TemplateResponseValues(
-                LIST_DATA_SOURCES_TEMPLATE, data);
+        return new TemplateResponseValues(LIST_DATA_SOURCES_TEMPLATE, data);
     }
     
-    private List<DataSourceDescription> pollStatus(
-            List<DataSourceDescription> dataSources) throws IOException {
-        for (DataSourceDescription dataSource : dataSources) {
-            if (dataSource.getConfiguration().getDeploymentURI() != null) {
-                DataSourceDescription description = pollService(
-                        dataSource.getConfiguration().getDeploymentURI());                
-                dataSource.setStatus(description.getStatus());
-            }
-        }
-        return dataSources;
-    }
-    
-    private DataSourceDescription pollService(String serviceURL) 
-            throws IOException {
-        DataSourceDescriptionSerializer serializer = 
-                new DataSourceDescriptionSerializer();        
-        try {
-            String result = httpUtils.getHttpResponse(serviceURL);
-            // TODO add wrapper / convenience method that retains status code
-            return serializer.unserialize(result);
-        } catch (Exception e) {
-            log.error(e, e);
-            DataSourceDescription error = new DataSourceDescription();
-            DataSourceStatus errorStatus = new DataSourceStatus();
-            errorStatus.setStatusOk(false);
-            errorStatus.setMessage("connector not responding");
-            error.setStatus(errorStatus);
-            return error;
-        }
-    }
     
 }

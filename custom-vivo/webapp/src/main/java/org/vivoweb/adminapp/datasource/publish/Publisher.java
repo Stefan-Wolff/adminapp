@@ -1,5 +1,9 @@
 package org.vivoweb.adminapp.datasource.publish;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -14,6 +18,9 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.QueryParseException;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
@@ -27,13 +34,13 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
-import org.vivoweb.adminapp.datasource.DataSource;
-import org.vivoweb.adminapp.datasource.DataSourceBase;
-import org.vivoweb.adminapp.datasource.DataSourceDescription;
+import org.vivoweb.adminapp.datasource.DataTask;
+import org.vivoweb.adminapp.datasource.DataTaskStatus;
 import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
 import org.vivoweb.adminapp.datasource.VivoVocabulary;
 import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
+import org.vivoweb.adminapp.datasource.util.xml.rdf.RdfUtils;
 
 /**
  * A data source that takes a admin app's SPARQL endpoint as an input
@@ -43,8 +50,8 @@ import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
  * @author Brian Lowe
  *
  */
-public class Publisher extends DataSourceBase implements DataSource {
-    
+public class Publisher extends DataTask {
+
     private static final Log log = LogFactory.getLog(Publisher.class);
     private static final String GRAPH_FILTER = 
             "    FILTER(!regex(str(?g),\"filegraph\")) \n" +
@@ -62,24 +69,194 @@ public class Publisher extends DataSourceBase implements DataSource {
     private static final String DATETIMEINTERVAL = "http://vivoweb.org/ontology/core#dateTimeInterval";
     private static final String HASCONTACTINFO = "http://purl.obolibrary.org/obo/ARG_2000028";
     
-    private DataSourceDao dataSourceDao;
+    private final String serviceURI;
+    protected boolean stopRequested = false;
+    protected RdfUtils rdfUtils = new RdfUtils();
+    protected DataTaskStatus status = new DataTaskStatus();
+    protected SparqlEndpoint sparqlEndpoint;
+    private SparqlEndpointParams endpointParameters;
     
-    protected DataSourceDao getDataSourceDao() {
-        if(dataSourceDao == null) {
-            this.dataSourceDao = new DataSourceDao(getSparqlEndpoint());
-        }
-        return this.dataSourceDao;
+    protected Publisher(String taskUri, String serviceURI) {
+        super(taskUri);
+        this.serviceURI = serviceURI;
     }
     
     @Override
-    protected void runIngest() {
+    public long run(DataSourceDao dataDao) {
+        this.getStatus().setRunning(true);
+        try {
+            log.info("Running ingest");
+            this.getStatus().setMessage("starting ingest");
+            this.getStatus().setStatusOk(true);
+            this.getStatus().setCompletionPercentage(0);
+            this.getStatus().setTotalRecords(0);
+            runIngest(dataDao);  
+            if(endpointParameters != null) {
+                // TODO: Don't clear the graph if the result is empty
+                // TODO: implementieren
+                //    writeResultsToEndpoint(null);   
+            } else {
+                log.info("Not writing results to remote endpoint because no endpoint specified");
+            }
+            this.getStatus().setMessage("ingest complete");
+        } catch (Exception e) {
+            log.info(e, e);
+            this.getStatus().setStatusOk(false);
+            this.getStatus().setMessage("ingest terminated due to error " 
+                    + e.getMessage());
+            throw new RuntimeException(e);
+        } finally {
+            log.info("Finishing ingest");
+            this.getStatus().setRunning(false);
+        }
+
+        return 0;
+    }
+   
+    
+    /**
+     * Load a named CONSTRUCT query from a file in the SPARQL resources 
+     * directory, run it against a model and add the results back to the model.
+     * @param queryName name of SPARQL CONSTRUCT query to load
+     * @param m model against which query should be executed
+     * @param namespaceEtc base string from which URIs should be generated
+     * @return model with new data added by CONSTRUCT query
+     */
+    protected Model construct(String queryName, Model m, String namespaceEtc) {
+        Model n = constructQuery(queryName, m, namespaceEtc, null);
+        log.debug("Query " + queryName + " constructed " + n.size() + " triples.");
+        m.add(n);
+        return m;
+    }
+    
+    /**
+     * Load a named CONSTRUCT query from a file in the SPARQL resources 
+     * directory, run it against a model and return a new model containing
+     * only the constructed triples.
+     * @param queryName name of SPARQL CONSTRUCT query to load
+     * @param m model against which query should be executed
+     * @param namespaceEtc base string from which URIs should be generated
+     * @return model with triples constructed by query
+     */
+    protected Model constructQuery(String queryName, Model m, 
+            String namespaceEtc, Map<String, String> substitutions) {
+        String queryStr = loadQuery(queryName);
+        if(substitutions != null) {
+            queryStr = processSubstitutions(queryStr, substitutions);
+        }
+        log.debug(queryStr);
+        try {
+            QueryExecution qe = QueryExecutionFactory.create(queryStr, m);
+            try {
+                Model tmp = ModelFactory.createDefaultModel();
+                qe.execConstruct(tmp);
+                return rdfUtils.renameBNodes(tmp, namespaceEtc, m);
+            } finally {
+                if(qe != null) {
+                    qe.close();
+                }
+            }
+        } catch (QueryParseException qpe) {
+            throw new RuntimeException("Error parsing query " + queryName, qpe);
+        }
+    }
+    
+    protected String processSubstitutions(String queryStr, 
+            Map<String, String> substitutions) {
+        for(String old : substitutions.keySet()) {
+            // TODO add more sophisticated substitution
+            String pattern = old + "\\b";
+            queryStr = queryStr.replaceAll(pattern, substitutions.get(old));
+        }
+        return queryStr;
+    }
+    
+    protected String loadQuery(String resourcePath) {
+        InputStream inputStream = this.getClass().getResourceAsStream(
+                resourcePath);
+        StringBuffer fileContents = new StringBuffer();
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new InputStreamReader(inputStream));
+            String ln;
+            while ( (ln = reader.readLine()) != null) {
+                fileContents.append(ln).append('\n');
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to load " + resourcePath, e);
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        return fileContents.toString();
+    }
+    
+    protected SparqlEndpoint getSparqlEndpoint() {
+        return this.sparqlEndpoint;
+    }
+    
+    protected void writeResultsToEndpoint(Model results) {
+        log.info("Writing results to endpoint");
+        String graphURI = getResultsGraphURI();
+        if(graphURI == null || graphURI.isEmpty()) {
+            throw new RuntimeException("Results graph URI cannot be null or empty");
+        }
+        log.info("Clearing graph " + graphURI);
+        //getSparqlEndpoint().update("CLEAR GRAPH <" + graphURI + ">");
+        getSparqlEndpoint().clearGraph(graphURI);
+        log.info("Updating graph " + graphURI);
+        getSparqlEndpoint().writeModel(results, graphURI);
+    }
+    
+    protected void addToEndpoint(Model m, String graphURI) {
+        if(graphURI == null || graphURI.isEmpty()) {
+            throw new RuntimeException("Results graph URI cannot be null or empty");
+        }
+        getSparqlEndpoint().writeModel(m, graphURI);
+    }
+    
+    protected void addToEndpoint(Model m) {
+        String graphURI = getResultsGraphURI();
+        if(graphURI == null || graphURI.isEmpty()) {
+            throw new RuntimeException("Results graph URI cannot be null or empty");
+        }
+        getSparqlEndpoint().writeModel(m, graphURI);
+    }
+    
+    protected List<String> getGraphsWithBaseURI(String baseURI, SparqlEndpoint endpoint) {
+        List<String> graphs = new ArrayList<String>();
+        String queryStr = "SELECT DISTINCT ?g WHERE { \n" +
+                          "    GRAPH ?g { ?s ?p ?o } \n" +
+                          "    FILTER(REGEX(STR(?g), \"^" + baseURI + "\")) \n" +
+                          "}";
+        ResultSet rs = endpoint.getResultSet(queryStr);
+        while(rs.hasNext()) {
+            QuerySolution qsoln = rs.next();
+            RDFNode n = qsoln.getResource("g");
+            if(n.isURIResource()) {
+                graphs.add(n.asResource().getURI());
+            } else if (n.isLiteral()) { // not supposed to be ...
+                graphs.add(n.asLiteral().getLexicalForm());
+            }
+        }
+        return graphs;
+    }
+    
+    
+  
+    
+    protected void runIngest(DataSourceDao dataDao) {
         SparqlEndpoint sourceEndpoint = getSourceEndpoint();
         SparqlEndpoint destinationEndpoint = getSparqlEndpoint();
         Set<String> functionalPropertyURIs = getFunctionalPropertyURIs();  
         emptyDestination(sourceEndpoint, destinationEndpoint);
         log.info("Getting graph preference list");
-        List<String> graphURIPreferenceList = getGraphURIPreferenceList(
-                sourceEndpoint);
+        List<String> graphURIPreferenceList = getGraphURIPreferenceList(sourceEndpoint, dataDao);
         log.info("Graph URI preference list: " + graphURIPreferenceList);
         //OntModel sameAsModel = getSameAsModel(sourceEndpoint);
         log.info("Starting to publish");
@@ -141,7 +318,6 @@ public class Publisher extends DataSourceBase implements DataSource {
                 if (duration > 1000) {
                     log.info(duration + " ms to process individual " + individualURI);
                 }
-                this.getStatus().setProcessedRecords(completedIndividuals.size());
                 if(individualCount % BATCH_SIZE == 0 || !indIt.hasNext()) {
                     flushBufferToDestination(buffer);    
                 }
@@ -162,15 +338,12 @@ public class Publisher extends DataSourceBase implements DataSource {
         }
     }
     
-    private List<String> getGraphURIPreferenceList(
-            SparqlEndpoint sourceEndpoint) {
+    private List<String> getGraphURIPreferenceList(SparqlEndpoint sourceEndpoint, DataSourceDao dataDao) {
         List<String> graphURIPreferenceList = new ArrayList<String>();
         graphURIPreferenceList.add(KB2);
         graphURIPreferenceList.add(ADMINAPP_ASSERTIONS);
-        for(DataSourceDescription dataSource : new DataSourceDao(
-                sourceEndpoint).listDataSources()) {
-            String graphURI = 
-                    dataSource.getConfiguration().getResultsGraphURI();
+        for(DataTask dataSource : dataDao.listIngestTasks()) {
+            String graphURI = dataSource.getResultsGraphURI();
             List<String> sourceGraphURIs = this.getGraphsWithBaseURI(graphURI, sourceEndpoint);
             if(sourceGraphURIs.size() == 0) {
                 continue;
@@ -181,8 +354,7 @@ public class Publisher extends DataSourceBase implements DataSource {
             if(graphURI != null) {
                 graphURIPreferenceList.add(graphURI);
             } else {
-                throw new RuntimeException("Graph URI is null for " + 
-                        dataSource.getConfiguration().getName());
+                throw new RuntimeException("Graph URI is null for " + dataSource.getName());
             }
         }
         return graphURIPreferenceList;
@@ -661,17 +833,15 @@ public class Publisher extends DataSourceBase implements DataSource {
     }
 
     protected SparqlEndpoint getSourceEndpoint() {
-        String sourceServiceURI = this.getConfiguration().getServiceURI();
+        String sourceServiceURI = this.serviceURI;
         if(!sourceServiceURI.endsWith("/")) {
             sourceServiceURI += "/";
         }
         SparqlEndpointParams params = new SparqlEndpointParams();
         params.setEndpointURI(sourceServiceURI + "api/sparqlQuery");
         params.setEndpointUpdateURI(sourceServiceURI + "api/sparqlUpdate");
-        params.setUsername(
-                this.getConfiguration().getEndpointParameters().getUsername());
-        params.setPassword(
-                this.getConfiguration().getEndpointParameters().getPassword());
+        params.setUsername(endpointParameters.getUsername());
+        params.setPassword(endpointParameters.getPassword());
         return new SparqlEndpoint(params);
     }
     
@@ -707,69 +877,6 @@ public class Publisher extends DataSourceBase implements DataSource {
         funcPropSet.add("<http://www.w3.org/2006/vcard/ns#url");
         return funcPropSet;
     }
- 
-    
-//    /**
-//     * @param endpoint
-//     * @return map of individual URI to URI of the highest-priority graph in 
-//     * which it has a type declaration
-//     */ 
-//    private Map<String, String> getHomeGraphMap(SparqlEndpoint endpoint, 
-//          List<String> graphURIPreferenceList) {
-//      Map<String, String> individualToGraphMap = new HashMap<String, String>();
-//      String homeGraphQuery = "SELECT ?ind ?graph WHERE { \n" +
-//                 "    { ?ind <" + OWL.sameAs.getURI() + "> ?something } \n" +
-//                 "    UNION \n" +
-//                 "    { ?something2 <" + OWL.sameAs.getURI() + "> ?ind } \n" +
-//                 "    GRAPH ?graph { ?ind a ?typeDeclaration } \n" +
-//                 "} \n";
-//      ResultSet homeGraphRs = endpoint.getResultSet(homeGraphQuery);
-//      while(homeGraphRs.hasNext()) {
-//          QuerySolution qsoln = homeGraphRs.next();
-//          RDFNode n = qsoln.get("ind");
-//          if(!n.isURIResource()) {
-//              continue;
-//          }
-//          String ind = n.asResource().getURI();
-//          RDFNode g = qsoln.get("graph");
-//          if(!g.isURIResource()) {
-//              continue;
-//          }
-//          String graph = g.asResource().getURI();
-//          String currentGraph = individualToGraphMap.get(ind);
-//          if(currentGraph == null) {
-//              individualToGraphMap.put(ind, graph);
-//          } else {
-//              if(isHigherPriorityThan(graph, currentGraph, 
-//                      graphURIPreferenceList)) {
-//                  individualToGraphMap.put(ind, graph);
-//              }
-//          }
-//          
-//      }
-//      return individualToGraphMap;
-//  }
-    
-//    private List<String> getSameAsURIs(String individualURI, 
-//            Map<String, Model> quadStore) {
-//        List<String> sameAsURIs = new ArrayList<String>();
-//        for(Model model : quadStore.values()) {
-//            NodeIterator nit = model.listObjectsOfProperty(
-//                    model.getResource(individualURI), OWL.sameAs);
-//            while(nit.hasNext()) {
-//                RDFNode node = nit.next();
-//                if(node.isURIResource()) {
-//                    sameAsURIs.add(node.asResource().getURI());
-//                }
-//            }
-//        }
-//        return sameAsURIs;
-//    }
-    
-    @Override
-    public Model getResult() {
-        // This method is not used with this data source.
-        return ModelFactory.createDefaultModel();
-    }
+
 
 }

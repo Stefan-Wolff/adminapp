@@ -2,19 +2,30 @@ package org.vivoweb.adminapp.datasource.util.http;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.client.LaxRedirectStrategy;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -62,7 +73,7 @@ public class HttpUtils {
                 .build();
     }
     
-    public String getHttpResponse(String url) throws IOException {
+    public String getHttpGetResponse(String url) throws IOException {
         HttpGet get = new HttpGet(url);
         get.setHeader("Accept-charset", "utf-8");
         HttpResponse response;
@@ -94,8 +105,7 @@ public class HttpUtils {
         }   
     }
     
-    private HttpResponse execute(HttpUriRequest request, HttpClient httpClient) 
-            throws ClientProtocolException, IOException {                
+    private HttpResponse execute(HttpUriRequest request, HttpClient httpClient) throws ClientProtocolException, IOException {                
         try {
             long msToSleep = this.msBetweenRequests - 
                     (System.currentTimeMillis() - this.lastRequestMillis);
@@ -139,6 +149,51 @@ public class HttpUtils {
             throw new RuntimeException(e);
         } 
 
+    }
+    
+    public Model getRDFResponse(String url, String method, Map<String, String> params, Map<String, String> headers, String responseType) throws IOException {
+        URIBuilder builder;
+        HttpRequestBase request;
+        
+        try {
+            if ("post".equals(method.strip().toLowerCase())) {
+                request = new HttpPost(url);
+                List<NameValuePair> paramList = new ArrayList<NameValuePair>();
+                for (Map.Entry<String, String> param : params.entrySet()) {
+                    paramList.add(new BasicNameValuePair(param.getKey(), param.getValue()));
+                }
+                
+                ((HttpPost)request).setEntity(new UrlEncodedFormEntity(paramList));
+            } else {
+                
+                builder = new URIBuilder(url);
+                for (Map.Entry<String, String> param : params.entrySet()) {
+                    builder.addParameter(param.getKey(), param.getValue());
+                }
+                
+                request = new HttpGet(builder.build());
+            }
+            
+            
+        } catch(URISyntaxException|UnsupportedEncodingException e) {
+            throw new IllegalArgumentException("Invalid service URI: " + url);
+        }
+
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+            request.addHeader(header.getKey(), header.getValue());
+        }
+        
+        HttpEntity entity = null;
+        try {
+            HttpResponse response = execute(request, httpClient);
+            entity = response.getEntity();
+            Model m = ModelFactory.createDefaultModel();
+            
+            return m.read(entity.getContent(), null, responseType);
+        }
+        finally {
+            EntityUtils.consume(entity);
+        }
     }
     
     

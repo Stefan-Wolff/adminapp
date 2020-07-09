@@ -32,7 +32,7 @@ auth:ADMIN
     # so passwords will not be sent in clear text.
     # adminapp: enabled by default
     auth:hasPermission simplePermission:UseSparqlUpdateApi ;
-    auth:hasPermission simplePermission:UseSparqlQueryApi ;    
+    auth:hasPermission simplePermission:UseSparqlQueryApi ;
 
     # permissions for CURATOR and above.
     auth:hasPermission simplePermission:EditOntology ;

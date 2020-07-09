@@ -80,8 +80,7 @@ _:genid7 a owl:Restriction ;
 	owl:onProperty :matchDegree ;
 	owl:allValuesFrom xsd:integer .
 
-:MergeDataSource rdfs:label "Merge Data Source"@en ;
-        a owl:Class ; rdfs:subClassOf _:genid1 .
+:DataMerge rdfs:subClassOf _:genid1 .
 
 _:genid1 a owl:Restriction ;
 	owl:onProperty :hasMergeRule ;

@@ -35,8 +35,7 @@ public class ServiceInvoker extends FreemarkerHttpServlet {
             throws IOException, URISyntaxException {
         VitroRequest vreq = new VitroRequest(request);
         String dataSourceURI = vreq.getParameter("uri");
-        DataSourceScheduler scheduler = DataSourceScheduler.getInstance(
-                getServletContext());
+        DataSourceScheduler scheduler = DataSourceScheduler.getInstance(getServletContext());
         if(vreq.getParameter("start") != null) {
             log.info("Starting data source");
             scheduler.startNow(dataSourceURI);

@@ -22,8 +22,6 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
-import org.vivoweb.adminapp.datasource.service.DataSourceDescriptionSerializer;
-import org.vivoweb.adminapp.datasource.util.http.HttpUtils;
 
 import edu.cornell.mannlib.vitro.webapp.config.ConfigurationProperties;
 import edu.cornell.mannlib.vitro.webapp.modelaccess.ModelAccess;
@@ -39,19 +37,14 @@ import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread.Work
 public class DataSourceScheduler implements ServletContextListener, ChangeListener {
 
     private ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-    private HashMap<String, ScheduledFuture<?>> uriToFuture =  
-            new HashMap<String, ScheduledFuture<?>>();
+    private HashMap<String, ScheduledFuture<?>> scheduledTasks = new HashMap<String, ScheduledFuture<?>>();
     private Model aboxModel;
     private DataSourceDao dataSourceDao;
     private RDFService rdfService;
-    private HttpUtils httpUtils = new HttpUtils();
     private static final String DATASOURCE_CONFIG_PROPERTY_PREFIX = "datasource.";
     private Map<String, String> datasourceConfigurationProperties = new HashMap<String, String>();
     private static final String DEFAULT_NAMESPACE_PROPERTY = "Vitro.defaultNamespace"; 
-    private static final String ENDPOINT_USERNAME_PROPERTY = "sparqlEndpoint.username";
-    private String endpointUsername;
-    private static final String ENDPOINT_PASSWORD_PROPERTY = "sparqlEndpoint.password";
-    private String endpointPassword;
+    private final Runnings runnings = new Runnings();
     
     private static final String DATE_TIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss";
     
@@ -67,12 +60,13 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         }
     }
     
+    
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
         try {
             log.info("Attempting to cancel all scheduled tasks...");
             try {
-                for(ScheduledFuture<?> f : uriToFuture.values()) {
+                for(ScheduledFuture<?> f : scheduledTasks.values()) {
                     try {
                         f.cancel(true);        
                     } catch (Exception e) {
@@ -98,12 +92,10 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         populateDataSourceRelatedConfigurationProperties(
                 ConfigurationProperties.getBean(sce).getPropertyMap());
         try {
-            this.aboxModel = ModelAccess.on(sce.getServletContext()
-                    ).getOntModelSelector().getABoxModel();
-            this.rdfService = ModelAccess.on(
-                    sce.getServletContext()).getRDFService();
-            this.dataSourceDao = new DataSourceDao(
-                    new RDFServiceModelConstructor(this.rdfService));
+            this.aboxModel = ModelAccess.on(sce.getServletContext()).getOntModelSelector().getABoxModel();
+            this.rdfService = ModelAccess.on(sce.getServletContext()).getRDFService();
+            this.dataSourceDao = new DataSourceDao(new RDFServiceModelConstructor(this.rdfService), this.aboxModel);
+            
         } catch (Exception e) {
             throw new RuntimeException(this.getClass().getSimpleName() 
                     + " must be run after the context's RDFService is set up.");
@@ -141,51 +133,25 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
                     key, configurationProperties.get(key));
         }
         datasourceConfigurationProperties.put(DEFAULT_NAMESPACE_PROPERTY, 
-                configurationProperties.get(DEFAULT_NAMESPACE_PROPERTY));
-        this.endpointUsername = configurationProperties.get(ENDPOINT_USERNAME_PROPERTY);
-        this.endpointPassword = configurationProperties.get(ENDPOINT_PASSWORD_PROPERTY);        
+                configurationProperties.get(DEFAULT_NAMESPACE_PROPERTY));    
     }
     
-    /*
-     * Add the global configuration properties to a parameter map
-     */
-    private void includeDataSourceRelatedConfigurationProperties(
-            Map<String, Object> parameters) {
-        for(String key : this.datasourceConfigurationProperties.keySet()) {
-            parameters.put(key, this.datasourceConfigurationProperties.get(key));
-        }
-    }
-    
-    /*
-     * Allow username and password for endpoint to be specified in 
-     * runtime.properties instead of RDF
-     */
-    private void addSparqlEndpointCredentialsFromConfigurationProperties(
-            SparqlEndpointParams endpointParameters) {
-        if(endpointParameters.getUsername() == null) {
-            endpointParameters.setUsername(endpointUsername);
-        }
-        if(endpointParameters.getPassword() == null) {
-            endpointParameters.setPassword(endpointPassword);
-        }        
-    }
     
     private void scheduleDataSources() {
-        for(DataSourceDescription dataSource : this.dataSourceDao.listDataSources()) {
-            cancel(dataSource.getConfiguration().getURI());
-            schedule(dataSource);
+        for(DataTask task : this.dataSourceDao.listIngestTasks()) {
+            schedule(task);
         }
     }
     
-    private void schedule(DataSourceDescription dataSource) {
+    private void schedule(DataTask task) {
         // If 'schedule immediately after' has been set, remove any specific 
         // next update date and exit.
-        if(dataSource.getScheduleAfterURI() != null) {
-            deleteNextUpdateDateTime(dataSource.getConfiguration().getURI());
-        } else if (dataSource.getNextUpdate() == null) {
+        if(task.getScheduleAfterURI() != null) {
+            deleteNextUpdateDateTime(task.getURI());
+        } else if (task.getNextUpdate() == null) {
             return;
-        } else if (dataSource.getUpdateFrequency() != null){
-            computeNextUpdateAndScheduleTask(dataSource);
+        } else if (task.getUpdateFrequency() != null){
+            computeNextUpdateAndScheduleTask(task);
         }
     }
     
@@ -210,11 +176,11 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         unmuteChangeListener(dataSourceURI);
     }
     
-    private void computeNextUpdateAndScheduleTask(DataSourceDescription dataSource) {
+    private void computeNextUpdateAndScheduleTask(DataTask task) {
         try {
             LocalDateTime nextUpdate = DateTimeFormat.forPattern(
                     DATE_TIME_PATTERN).parseDateTime(
-                            dataSource.getNextUpdate()).toLocalDateTime();
+                            task.getNextUpdate()).toLocalDateTime();
             // Give ourselves a buffer of five minutes to avoid the chance 
             // of scheduling something that won't get run because the time
             // has already passed.
@@ -222,22 +188,20 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             int giveUp = 100;
             while(now.isAfter(nextUpdate) && giveUp > 0) {
                 giveUp--;
-                nextUpdate = advanceByFrequency(nextUpdate, 
-                        dataSource.getUpdateFrequency());
+                nextUpdate = advanceByFrequency(nextUpdate, task.getUpdateFrequency());
             }
-            setNextUpdate(dataSource.getConfiguration().getURI(), nextUpdate);
-            scheduleTask(dataSource.getConfiguration().getURI(), nextUpdate);
+            setNextUpdate(task.getURI(), nextUpdate);
+            scheduleTask(task.getURI(), nextUpdate);
         } catch (Exception e) {
             log.error(e, e);
-            deleteNextUpdateDateTime(dataSource.getConfiguration().getURI());
+            deleteNextUpdateDateTime(task.getURI());
         }
     }
     
     private void scheduleTask(String dataSourceURI, LocalDateTime dateTime) {
-        Runnable task = new DataSourceStarter(
-                dataSourceURI, true, new DataSourceTimestamper(aboxModel));
-        this.uriToFuture.put(dataSourceURI, scheduler.schedule(task,
-                dateTime.toDateTime().toDate()));
+        Runnable task = new DataSourceRunner(dataSourceURI, new DataSourceTimestamper(aboxModel));
+        this.scheduledTasks.put(dataSourceURI, scheduler.schedule(task, dateTime.toDateTime().toDate()));
+        
         log.info("Scheduled " + dataSourceURI + " for " + dateTime.toString());
     }
     
@@ -257,39 +221,22 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     }
     
     public void startNow(String dataSourceURI) {
-        VitroBackgroundThread starter = new VitroBackgroundThread( 
-                new DataSourceStarter(dataSourceURI, true, 
-                        new DataSourceTimestamper(aboxModel)), 
-                                dataSourceURI + "-starter");
+        DataSourceRunner runner = new DataSourceRunner(dataSourceURI, new DataSourceTimestamper(aboxModel));
+        VitroBackgroundThread starter = new VitroBackgroundThread(runner, dataSourceURI + "-starter");
         starter.setWorkLevel(WorkLevel.WORKING);
         starter.start();
     }
     
     public void stopNow(String dataSourceURI) {
-        VitroBackgroundThread starter = new VitroBackgroundThread( 
-                new DataSourceStopper(dataSourceURI), 
-                                dataSourceURI + "-stopper");
-        starter.setWorkLevel(WorkLevel.WORKING);
-        starter.start();
-    }
-    
-    private void cancel(String dataSourceURI) {
-        ScheduledFuture<?> future = this.uriToFuture.get(dataSourceURI);
-        if(future != null) {
-            future.cancel(true);
-        }
-        this.uriToFuture.put(dataSourceURI, null);
+        runnings.stop(dataSourceURI);
     }
 
-    private DataSourceDescription getDataSourceDescription(
-            String dataSourceURI) {
-        DataSourceDescription ds = this.dataSourceDao.getDataSource(
-                dataSourceURI);
-        if(ds == null) {
-            throw new RuntimeException("DataSource " + dataSourceURI 
-                    + "not found");
+    private DataTask loadTask(String dataSourceURI) {
+        DataTask result = this.dataSourceDao.getDataSource(dataSourceURI);
+        if(result == null) {
+            throw new RuntimeException("Task " + dataSourceURI + " not found");
         }
-        return ds;
+        return result;
     }
     
     private class DataSourceTimestamper {
@@ -302,8 +249,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         
         private void timestampLastUpdate(String dataSourceURI) {
             LocalDateTime now = new LocalDateTime();
-            String timestampStr = now.toString(DateTimeFormat.forPattern(
-                    DATE_TIME_PATTERN));
+            String timestampStr = now.toString(DateTimeFormat.forPattern(DATE_TIME_PATTERN));
             Resource dataSource = model.getResource(dataSourceURI);
             Property lastUpdate = model.getProperty(DataSourceDao.LASTUPDATE);
             model.removeAll(dataSource, lastUpdate, null);
@@ -312,113 +258,73 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         
     }
     
-    private class DataSourceStarter implements Runnable {
+    private class DataSourceRunner implements Runnable {
 
         private String dataSourceURI;
         private DataSourceTimestamper timestamper;
-        private boolean runNextSourceInChain = false;
-        private int START_POLL_INTERVAL = 100; // ms
-        private int FINISH_POLL_INTERVAL = 3000; // ms
+        private DataTask task = null;
         
-        public DataSourceStarter(String dataSourceURI, boolean runNextSourceInChain,
-                DataSourceTimestamper timestamper) {
+        public DataSourceRunner(String dataSourceURI, DataSourceTimestamper timestamper) {
             this.dataSourceURI = dataSourceURI;
             this.timestamper = timestamper;
-            this.runNextSourceInChain = runNextSourceInChain;
         }
         
         @Override
         public void run() {
+            if (runnings.isRunning(dataSourceURI)) {
+                log.warn("Service is already running: " + dataSourceURI);
+                return;
+            }
+            
+            runnings.addRunning(dataSourceURI, this);
+            task = loadTask(dataSourceURI);
             timestamper.timestampLastUpdate(dataSourceURI);
-            DataSourceDescription desc = getDataSourceDescription(
-                    dataSourceURI);
-            includeDataSourceRelatedConfigurationProperties(
-                    desc.getConfiguration().getParameterMap());
-            addSparqlEndpointCredentialsFromConfigurationProperties(
-                    desc.getConfiguration().getEndpointParameters());
-            desc.getStatus().setRunning(true);
-            updateService(desc.getConfiguration().getDeploymentURI(), desc);
-            schedule(desc);
-            int polls = 50;
-            while(!isRunning(desc.getConfiguration().getDeploymentURI()) && polls > 0) {
-                polls--;
-                try {
-                    Thread.sleep(START_POLL_INTERVAL);
-                } catch(InterruptedException e) {
-                    this.runNextSourceInChain = false;
-                }
+            
+            task.getStatus().setRunning(true);
+            task.getStatus().setStatusOk(true);
+            task.getStatus().setMessage(null);
+            
+            long resultNum = 0;
+            boolean taskOK = true;
+            
+            try {
+                resultNum = task.run(DataSourceScheduler.this.dataSourceDao);
+                
+            } catch (Exception e1) {
+                log.error("Running of service failed: " + dataSourceURI, e1);
+                task.getStatus().setStatusOk(false);
+                task.getStatus().setMessage(e1.getMessage());
+                taskOK = false;
             }
-            if(runNextSourceInChain) {
-                boolean brk = false;
-                while(brk || isRunning(desc.getConfiguration().getDeploymentURI())) {
-                    try {
-                        Thread.sleep(FINISH_POLL_INTERVAL);                        
-                    } catch (InterruptedException e) {
-                        brk = true;
-                        this.runNextSourceInChain = false;
-                    }
-                }
-                for(DataSourceDescription dataSource : dataSourceDao.listDataSources()) {
-                    log.info(dataSource.getConfiguration().getURI() + " is scheduled to run after " + dataSource.getScheduleAfterURI());
-                    if(dataSourceURI.equals(dataSource.getScheduleAfterURI())) {
-                        log.info("Starting" + dataSource.getConfiguration().getURI());
-                        startNow(dataSource.getConfiguration().getURI());
+            
+            task.getStatus().setTotalRecords(resultNum);
+            dataSourceDao.saveTaskStatus(task.getStatus(), dataSourceURI);
+            
+            schedule(task);
+            
+            if (taskOK) {
+                for(DataTask nextTask : dataSourceDao.listIngestTasks()) {
+                    if(dataSourceURI.equals(nextTask.getScheduleAfterURI())) {
+                        log.info("Starting service " + nextTask.getURI() + " scheduled as run after: " + dataSourceURI);
+                        startNow(nextTask.getURI());
                     }
                 }
             }
+            
+            runnings.removeRunning(dataSourceURI);
+        }
+        
+        
+        protected void stop() {
+            if (null != task) {
+                task.getStatus().setRunning(false);
+            }
         }
         
     }
     
-    private class DataSourceStopper implements Runnable {
-
-        private String dataSourceURI;
-        
-        public DataSourceStopper(String dataSourceURI) {
-            this.dataSourceURI = dataSourceURI;
-        }
-        
-        @Override
-        public void run() {
-            DataSourceDescription desc = getDataSourceDescription(
-                    dataSourceURI);            
-            desc.getStatus().setRunning(false);
-            updateService(desc.getConfiguration().getDeploymentURI(), desc);            
-        }
-        
-    }
-    
-    protected boolean isRunning(String deploymentURI) {
-        DataSourceDescriptionSerializer serializer = 
-                new DataSourceDescriptionSerializer();        
-        try {
-            String result = httpUtils.getHttpResponse(deploymentURI);
-            DataSourceDescription dataSource = serializer.unserialize(result);
-            return dataSource.getStatus().isRunning();
-        } catch (Exception e) {
-            log.error(e, e);
-            return false;
-        }    
-    }
-    
-    protected DataSourceDescription updateService(
-            String deploymentURL, DataSourceDescription description) {
-        if(deploymentURL == null) {
-            throw new RuntimeException("deployment URL may not be null");
-        }
-        DataSourceDescriptionSerializer serializer = 
-                new DataSourceDescriptionSerializer();
-        String json = serializer.serialize(description);
-        String result = httpUtils.getHttpPostResponse(
-                deploymentURL, json, "application/json");
-        try {
-            DataSourceDescription desc = serializer.unserialize(result);
-            return desc;
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Exception parsing response from " + deploymentURL 
-                            + ": \n" + result);
-        }
+    public boolean isRunning(String dataSourceURI) {
+        return runnings.isRunning(dataSourceURI);
     }
 
     @Override
@@ -484,4 +390,34 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         }
     }
     
+    
+    private class Runnings {
+        
+        private final Map<String, DataSourceRunner> uris = new HashMap<String, DataSourceRunner>();
+        
+        public synchronized void addRunning(String uri, DataSourceRunner instance) {
+            if (uris.containsKey(uri)) {
+                throw new IllegalStateException("Cannot start service while it is already running: " + uri);
+            }
+            
+            uris.put(uri, instance);
+        }
+        
+        public synchronized void removeRunning(String uri) {
+            uris.remove(uri);
+        }
+        
+        public synchronized boolean isRunning(String uri) {
+            return uris.containsKey(uri);
+        }
+        
+        public synchronized void stop(String uri) {
+            DataSourceRunner instance = uris.get(uri);
+            
+            if (null != instance) {
+                instance.stop();
+            }
+        }
+        
+    }
 }

@@ -25,11 +25,10 @@
 
 
 <http://vivo.adminapp.local/individual/publishStaging>
-        a              <http://vivoweb.org/ontology/adminapp/PublishDataSource> ;
+        a              <http://vivoweb.org/ontology/adminapp/DataTask> , <http://vivoweb.org/ontology/adminapp/DataPublish> , owl:Thing ;
         rdfs:label     "Publish to Staging VIVO"@en-US ;
         vitro:modTime  "2017-02-21T12:58:33"^^xsd:dateTime ;
-        <http://vivoweb.org/ontology/adminapp/deploymentURI>
-                "http://localhost:8080/adminapp/dataSource/publish/staging"^^xsd:anyURI ;
+        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataPublish> ;
         <http://vivoweb.org/ontology/adminapp/priority>
                 1 ;
         <http://vivoweb.org/ontology/adminapp/serviceURI>
@@ -48,11 +47,10 @@
 				
 				
 <http://vivo.adminapp.local/individual/publishPublic>
-        a              <http://vivoweb.org/ontology/adminapp/PublishDataSource> ;
+        a              <http://vivoweb.org/ontology/adminapp/DataTask> , <http://vivoweb.org/ontology/adminapp/DataPublish> , owl:Thing ;
         rdfs:label     "Publish to Public VIVO"@en-US ;
         vitro:modTime  "2017-02-24T16:54:21"^^xsd:dateTime ;
-        <http://vivoweb.org/ontology/adminapp/deploymentURI>
-                "http://localhost:8080/adminapp/dataSource/publish/public"^^xsd:anyURI ;
+        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataPublish> ;
         <http://vivoweb.org/ontology/adminapp/priority>
                 2 ;
         <http://vivoweb.org/ontology/adminapp/serviceURI>
@@ -71,20 +69,32 @@
 				
 				
 <http://vivo.adminapp.local/individual/dataSourceExample>
-        a           <http://vivoweb.org/ontology/adminapp/DataSource> ;
+		a			owl:Thing ;
+        a           <http://vivoweb.org/ontology/adminapp/DataTask> ;
+        a			<http://vivoweb.org/ontology/adminapp/DataIngest> ;
+        a			<http://vivoweb.org/ontology/adminapp/TurtleDataIngest> ;
+        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/TurtleDataIngest> ;
         rdfs:label  "Example data source"@en-US ;
-        <http://vivoweb.org/ontology/adminapp/deploymentURI>
-                "http://localhost:8080/adminapp/dataSource/example"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/graphURI>
                 "http://vitro.mannlib.cornell.edu/a/graph/ExampleGraph"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/priority>
                 0 ;
         <http://vivoweb.org/ontology/adminapp/serviceURI>
-                "http://localhost:8081/openrdf-sesame/repositories/karma_data"^^xsd:anyURI ;
-        <http://vivoweb.org/ontology/adminapp/usesQueryTermSet>
-                <http://vivo.adminapp.local/individual/queryTerm0> ;
+                "http://127.0.0.1:8081/web-services-rdf/rdf/r2rml/rdf"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/usesSparqlEndpoint>
-                <http://vivo.adminapp.local/individual/sparqlEndpoint2> .
+                <http://vivo.adminapp.local/individual/sparqlEndpoint2> ;
+        <http://vivoweb.org/ontology/adminapp/httpMethod>
+                "post"^^xsd:string ;
+        <http://vivoweb.org/ontology/adminapp/httpParam>
+                "R2rmlURI=file:/E:/Datenbasis move/citating.json-model.ttl"^^xsd:string ;
+        <http://vivoweb.org/ontology/adminapp/httpParam>
+                "ContentType=JSON"^^xsd:string ;
+        <http://vivoweb.org/ontology/adminapp/httpParam>
+                "DataURL=file:/E:/Datenbasis move/citating.json"^^xsd:string ;
+        <http://vivoweb.org/ontology/adminapp/httpParam>
+                "size=1000000"^^xsd:string ;
+        <http://vivoweb.org/ontology/adminapp/httpParam>
+                "BaseURI=https://www.forschungskompass.eu/"^^xsd:string.
 				
 <http://vivo.adminapp.local/individual/sparqlEndpoint2>
         a           <http://vivoweb.org/ontology/adminapp/SparqlEndpoint> ;
@@ -94,21 +104,11 @@
         <http://vivoweb.org/ontology/adminapp/endpointUpdateURI>
                 "http://localhost:8080/adminapp/api/sparqlUpdate"^^xsd:anyURI .
 				
-<http://vivo.adminapp.local/individual/queryTerm0>
-        a              <http://vivoweb.org/ontology/adminapp/QueryTermSet> ;
-        rdfs:label     "Standard Query Term set"@en-US ;
-        vitro:modTime  "2017-02-16T18:45:40"^^xsd:dateTime ;
-        <http://vivoweb.org/ontology/adminapp/queryTerm>
-                "ble" , "tritici" , "blé" .
-				
-				
 <http://vivo.adminapp.local/individual/mergeSource0>
-        a                       <http://vivoweb.org/ontology/adminapp/DataSource> , <http://vivoweb.org/ontology/adminapp/MergeDataSource> , owl:Thing ;
-        rdfs:label              "Standard merge source"@en-US ;
+        a                       <http://vivoweb.org/ontology/adminapp/DataTask> , <http://vivoweb.org/ontology/adminapp/DataMerge> , owl:Thing;
+        rdfs:label              "Standard merge config"@en-US ;
         vitro:modTime           "2017-02-21T12:45:37"^^xsd:dateTime ;
-        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/MergeDataSource> ;
-        <http://vivoweb.org/ontology/adminapp/deploymentURI>
-                "http://localhost:8080/adminapp/dataSource/merge"^^xsd:anyURI ;
+        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataMerge> ;
         <http://vivoweb.org/ontology/adminapp/graphURI>
                 "http://vivo.adminapp.local/graph/merge"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/serviceURI>

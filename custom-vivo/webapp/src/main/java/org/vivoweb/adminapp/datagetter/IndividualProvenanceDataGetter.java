@@ -12,9 +12,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
-import org.vivoweb.adminapp.datasource.DataSourceDescription;
-import org.vivoweb.adminapp.datasource.RDFServiceModelConstructor;
-import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
+import org.vivoweb.adminapp.datasource.DataTask;
 
 import edu.cornell.mannlib.vitro.webapp.beans.Individual;
 import edu.cornell.mannlib.vitro.webapp.controller.VitroRequest;
@@ -29,7 +27,6 @@ public class IndividualProvenanceDataGetter implements DataGetter {
     private static final String INF_GRAPH = "http://vitro.mannlib.cornell.edu/default/vitro-kb-inf";
     
     private VitroRequest vreq;
-    private DataSourceDao mgr;
     
     private static final Log log = LogFactory.getLog(IndividualProvenanceDataGetter.class);
     
@@ -41,8 +38,6 @@ public class IndividualProvenanceDataGetter implements DataGetter {
         try {
             log.debug("Constructing datagetter");
             this.vreq = vreq; 
-            this.mgr = new DataSourceDao(new RDFServiceModelConstructor(
-                    vreq.getRDFService()));
         } catch (Exception e) {
             // because the code that invokes this by reflection is stupid
             // and doesn't log the nested exception
@@ -95,14 +90,16 @@ public class IndividualProvenanceDataGetter implements DataGetter {
             if(KB2_GRAPH.equals(graphURI) || INF_GRAPH.equals(graphURI)) {
                 continue;
             }
-            DataSourceDescription dataSource = mgr.getDataSourceByGraphURI(graphURI);
+            // TODO: fertig implementieren
+            //DataTask dataSource = mgr.getDataSourceByGraphURI(graphURI);
+            DataTask dataSource = null;
             if (dataSource != null) {
-                log.debug("Found data source " + dataSource.getConfiguration().getName() + 
+                log.debug("Found data source " + dataSource.getName() + 
                         " for individual " + individualURI);
                 if(!graphURISet.contains(graphURI)) {
                     graphURISet.add(graphURI);
-                    sources.add(new Source(dataSource.getConfiguration().getName(), 
-                        dataSource.getConfiguration().getURI(), dateTime));
+                    sources.add(new Source(dataSource.getName(), 
+                        dataSource.getURI(), dateTime));
                 }
             } else {
                 log.debug("Checking for merge rule with URI " + graphURI);
