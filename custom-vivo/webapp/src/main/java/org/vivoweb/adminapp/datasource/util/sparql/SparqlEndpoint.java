@@ -30,6 +30,7 @@ import org.apache.jena.query.ResultSetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.sparql.resultset.ResultSetException;
 import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
@@ -176,8 +177,11 @@ public class SparqlEndpoint implements ModelConstructor {
                 }
                 currentChunk = ModelFactory.createDefaultModel();
             }
-            currentChunk.add(sit.nextStatement());
-            i++;
+            Statement stmt = sit.nextStatement();
+            if (!stmt.getSubject().isAnon() && !stmt.getObject().isAnon()) {        // skip blank nodes
+                currentChunk.add(stmt);
+                i++;
+            }
         }
         if (currentChunk != null) {
             modelChunks.add(currentChunk);
@@ -210,6 +214,7 @@ public class SparqlEndpoint implements ModelConstructor {
                     "update", updateString));
             UrlEncodedFormEntity entity = new UrlEncodedFormEntity(
                     nameValuePairs);
+            
             post.setEntity(entity);
             HttpResponse response = httpClient.execute(post);
             try {

@@ -2,7 +2,7 @@ package org.vivoweb.adminapp.datasource;
 
 import java.io.IOException;
 
-import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
+import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 
 /**
  * Abstract class of a data processing task, esp. meant for ingest, merging und publishing tasks.
@@ -28,7 +28,7 @@ public abstract class DataTask {
     }
 
 
-    public abstract long run(DataSourceDao dataSourceDao) throws IOException;
+    public abstract long run(DataTaskDao dataSourceDao) throws IOException;
     
     
     public String getName() {

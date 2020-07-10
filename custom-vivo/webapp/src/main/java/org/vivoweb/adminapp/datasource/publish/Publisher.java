@@ -38,7 +38,7 @@ import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.DataTaskStatus;
 import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
 import org.vivoweb.adminapp.datasource.VivoVocabulary;
-import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
+import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 import org.vivoweb.adminapp.datasource.util.xml.rdf.RdfUtils;
 
@@ -82,13 +82,11 @@ public class Publisher extends DataTask {
     }
     
     @Override
-    public long run(DataSourceDao dataDao) {
-        this.getStatus().setRunning(true);
+    public long run(DataTaskDao dataDao) {
         try {
             log.info("Running ingest");
             this.getStatus().setMessage("starting ingest");
             this.getStatus().setStatusOk(true);
-            this.getStatus().setCompletionPercentage(0);
             this.getStatus().setTotalRecords(0);
             runIngest(dataDao);  
             if(endpointParameters != null) {
@@ -250,7 +248,7 @@ public class Publisher extends DataTask {
     
   
     
-    protected void runIngest(DataSourceDao dataDao) {
+    protected void runIngest(DataTaskDao dataDao) {
         SparqlEndpoint sourceEndpoint = getSourceEndpoint();
         SparqlEndpoint destinationEndpoint = getSparqlEndpoint();
         Set<String> functionalPropertyURIs = getFunctionalPropertyURIs();  
@@ -338,7 +336,7 @@ public class Publisher extends DataTask {
         }
     }
     
-    private List<String> getGraphURIPreferenceList(SparqlEndpoint sourceEndpoint, DataSourceDao dataDao) {
+    private List<String> getGraphURIPreferenceList(SparqlEndpoint sourceEndpoint, DataTaskDao dataDao) {
         List<String> graphURIPreferenceList = new ArrayList<String>();
         graphURIPreferenceList.add(KB2);
         graphURIPreferenceList.add(ADMINAPP_ASSERTIONS);

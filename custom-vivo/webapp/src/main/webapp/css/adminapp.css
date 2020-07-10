@@ -1,9 +1,9 @@
-strong.statusOK {
+span.statusOK {
     color:green;
     font-weight:bold;
 }
 
-strong.statusError {
+span.statusError {
     color:red;
     font-weight:bold;
 }
@@ -19,4 +19,9 @@ table.adminTable td {
 
 table.adminTable thead td {
     background-color:#ddddee;
+}
+
+.add-config {
+	float: right;
+	font-size: medium;
 }

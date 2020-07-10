@@ -20,15 +20,15 @@ import org.vivoweb.adminapp.datasource.DataSourceUpdateFrequency;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.DataTaskStatus;
 import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
-import org.vivoweb.adminapp.datasource.ingest.TurtleDataIngest;
+import org.vivoweb.adminapp.datasource.ingest.DataIngest;
 import org.vivoweb.adminapp.datasource.merge.DataMerge;
 import org.vivoweb.adminapp.datasource.publish.DataPublish;
 
-public class DataSourceDao {
+public class DataTaskDao {
     
-    private static final String ADMIN_APP_TBOX = "http://vivoweb.org/ontology/adminapp/";
+    public static final String ADMIN_APP_TBOX = "http://vivoweb.org/ontology/adminapp/";
     private static final String DATATASK = ADMIN_APP_TBOX + "DataTask";
-    private static final String TURTLEDATAINGEST = ADMIN_APP_TBOX + "TurtleDataIngest";
+    private static final String DATAINGEST = ADMIN_APP_TBOX + "DataIngest";
     private static final String DATAMERGE = ADMIN_APP_TBOX + "DataMerge";
     private static final String DATAPUBLISH = ADMIN_APP_TBOX + "DataPublish";
     private static final String USESSPARQLENDPOINT = ADMIN_APP_TBOX + "usesSparqlEndpoint";
@@ -37,6 +37,7 @@ public class DataSourceDao {
     private static final String HTTPMETHOD = ADMIN_APP_TBOX + "httpMethod";
     private static final String HTTPPARAM = ADMIN_APP_TBOX + "httpParam";
     private static final String HTTPHEADER = ADMIN_APP_TBOX + "httpHeader";
+    private static final String RESPONSEFORMAT = ADMIN_APP_TBOX + "responseFormat";
     private static final String RESULTNUM = ADMIN_APP_TBOX + "resultNum";
     private static final String ISOK = ADMIN_APP_TBOX + "isOK";
     private static final String MESSAGE = ADMIN_APP_TBOX + "message";
@@ -52,17 +53,17 @@ public class DataSourceDao {
     
     private static final String MOSTSPECIFICTYPE = "http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType";
     
-    private static final Log log = LogFactory.getLog(DataSourceDao.class);
+    private static final Log log = LogFactory.getLog(DataTaskDao.class);
     
     private final ModelConstructor readModelConstructor;
     private final Model aboxModel;
-    private final String ingestTasksQuery = getDataSourcesQuery(TURTLEDATAINGEST);
+    private final String ingestTasksQuery = getDataSourcesQuery(DATAINGEST);
     private final String mergeTasksQuery = getDataSourcesQuery(DATAMERGE);
     private final String publishTasksQuery = getDataSourcesQuery(DATAPUBLISH);
     
     
     
-    public DataSourceDao(ModelConstructor modelConstructor, Model aboxModel) {
+    public DataTaskDao(ModelConstructor modelConstructor, Model aboxModel) {
         this.readModelConstructor = modelConstructor;
         this.aboxModel = aboxModel;
     }
@@ -128,6 +129,11 @@ public class DataSourceDao {
         }
     }
     
+    public void saveResultNum(String URI, long num) {
+        aboxModel.removeAll(aboxModel.getResource(URI), aboxModel.getProperty(RESULTNUM), null);
+        aboxModel.addLiteral(aboxModel.getResource(URI), aboxModel.getProperty(RESULTNUM), num);
+    }
+    
     private Model construct(String queryStr) {
         return readModelConstructor.construct(queryStr);
     }
@@ -144,7 +150,7 @@ public class DataSourceDao {
         DataTask result;
         
         switch(classURI) {
-            case TURTLEDATAINGEST:
+            case DATAINGEST:
                 result = createIngestTask(URI, model);
                 break;
                 
@@ -162,8 +168,11 @@ public class DataSourceDao {
         return result;
     }
     
-    private TurtleDataIngest createIngestTask(String URI, Model model) {
-        TurtleDataIngest result = new TurtleDataIngest(URI, getStringValue(URI, SERVICEURI, model), getStringValue(URI, HTTPMETHOD, model));
+    private DataIngest createIngestTask(String URI, Model model) {
+        DataIngest result = new DataIngest(URI, 
+                                                getStringValue(URI, SERVICEURI, model), 
+                                                getStringValue(URI, HTTPMETHOD, model),
+                                                getStringValue(URI, RESPONSEFORMAT, model));
         
         StmtIterator httpParamIt = model.listStatements(model.getResource(URI), model.getProperty(HTTPPARAM), (RDFNode) null);
         for (Statement current : httpParamIt.toList()) {
@@ -173,18 +182,19 @@ public class DataSourceDao {
                 log.warn("Not wellformed HTTP parameter (asserted: key=value): " + current.getString());
             }
             
-            result.getHttpParams().put(paramTokens[0], paramTokens[1]);
+            result.addHttpParam(paramTokens[0], paramTokens[1]);
         }
         
         StmtIterator httpHeaderIt = model.listStatements(model.getResource(URI), model.getProperty(HTTPHEADER), (RDFNode) null);
         for (Statement current : httpHeaderIt.toList()) {
-            String[] paramTokens = current.getString().split("=");
+            String keyValue = current.getString();
+            int sepIndex = keyValue.indexOf("=");
             
-            if (1 > paramTokens.length) {
-                log.warn("Not wellformed HTTP header (asserted: key=value): " + current.getString());
+            if (-1 == sepIndex) {
+                log.warn("Not wellformed HTTP header (asserted: key=value): " + keyValue);
             }
             
-            result.getHttpHeaders().put(paramTokens[0], paramTokens[1]);
+            result.addHttpHeader(keyValue.substring(0, sepIndex), keyValue.substring(sepIndex+1));
         }
         
         initTask(URI, model, result);

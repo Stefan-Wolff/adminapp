@@ -27,19 +27,15 @@
 <http://vivo.adminapp.local/individual/publishStaging>
         a              <http://vivoweb.org/ontology/adminapp/DataTask> , <http://vivoweb.org/ontology/adminapp/DataPublish> , owl:Thing ;
         rdfs:label     "Publish to Staging VIVO"@en-US ;
-        vitro:modTime  "2017-02-21T12:58:33"^^xsd:dateTime ;
         vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataPublish> ;
         <http://vivoweb.org/ontology/adminapp/priority>
                 1 ;
-        <http://vivoweb.org/ontology/adminapp/serviceURI>
-                "http://localhost:8080/adminapp/"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/usesSparqlEndpoint>
                 <http://vivo.adminapp.local/individual/sparqlEndpoint1> .
 				
 <http://vivo.adminapp.local/individual/sparqlEndpoint1>
         a              <http://vivoweb.org/ontology/adminapp/SparqlEndpoint> ;
         rdfs:label     "Public Portal Endpoint"@en-US ;
-        vitro:modTime  "2017-05-16T15:50:14"^^xsd:dateTime ;
         <http://vivoweb.org/ontology/adminapp/endpointURI>
                 "http://localhost:8080/vivo/api/sparqlQuery"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/endpointUpdateURI>
@@ -49,34 +45,31 @@
 <http://vivo.adminapp.local/individual/publishPublic>
         a              <http://vivoweb.org/ontology/adminapp/DataTask> , <http://vivoweb.org/ontology/adminapp/DataPublish> , owl:Thing ;
         rdfs:label     "Publish to Public VIVO"@en-US ;
-        vitro:modTime  "2017-02-24T16:54:21"^^xsd:dateTime ;
         vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataPublish> ;
         <http://vivoweb.org/ontology/adminapp/priority>
                 2 ;
-        <http://vivoweb.org/ontology/adminapp/serviceURI>
-                "http://localhost:8080/adminapp/"^^xsd:anyURI ;
+        <http://vivoweb.org/ontology/adminapp/graphURI>
+                "http://vitro.mannlib.cornell.edu/a/graph/MergeGraph"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/usesSparqlEndpoint>
                 <http://vivo.adminapp.local/individual/sparqlEndpoint0> .
 				
 <http://vivo.adminapp.local/individual/sparqlEndpoint0>
         a              <http://vivoweb.org/ontology/adminapp/SparqlEndpoint> ;
         rdfs:label     "Public Portal Endpoint"@en-US ;
-        vitro:modTime  "2017-05-16T15:50:14"^^xsd:dateTime ;
         <http://vivoweb.org/ontology/adminapp/endpointURI>
                 "http://localhost:8080/vivo/api/sparqlQuery"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/endpointUpdateURI>
                 "http://localhost:8080/vivo/api/sparqlUpdate"^^xsd:anyURI .
 				
 				
-<http://vivo.adminapp.local/individual/dataSourceExample>
+<http://vivo.adminapp.local/individual/ingestConfig0>
 		a			owl:Thing ;
         a           <http://vivoweb.org/ontology/adminapp/DataTask> ;
         a			<http://vivoweb.org/ontology/adminapp/DataIngest> ;
-        a			<http://vivoweb.org/ontology/adminapp/TurtleDataIngest> ;
-        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/TurtleDataIngest> ;
+        vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataIngest> ;
         rdfs:label  "Example data source"@en-US ;
         <http://vivoweb.org/ontology/adminapp/graphURI>
-                "http://vitro.mannlib.cornell.edu/a/graph/ExampleGraph"^^xsd:anyURI ;
+                "http://vitro.mannlib.cornell.edu/a/graph/IngestGraph0"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/priority>
                 0 ;
         <http://vivoweb.org/ontology/adminapp/serviceURI>
@@ -92,9 +85,9 @@
         <http://vivoweb.org/ontology/adminapp/httpParam>
                 "DataURL=file:/E:/Datenbasis move/citating.json"^^xsd:string ;
         <http://vivoweb.org/ontology/adminapp/httpParam>
-                "size=1000000"^^xsd:string ;
-        <http://vivoweb.org/ontology/adminapp/httpParam>
-                "BaseURI=https://www.forschungskompass.eu/"^^xsd:string.
+                "BaseURI=https://www.forschungskompass.eu/"^^xsd:string;
+        <http://vivoweb.org/ontology/adminapp/responseFormat>
+                "TURTLE"^^xsd:string.
 				
 <http://vivo.adminapp.local/individual/sparqlEndpoint2>
         a           <http://vivoweb.org/ontology/adminapp/SparqlEndpoint> ;
@@ -104,15 +97,69 @@
         <http://vivoweb.org/ontology/adminapp/endpointUpdateURI>
                 "http://localhost:8080/adminapp/api/sparqlUpdate"^^xsd:anyURI .
 				
-<http://vivo.adminapp.local/individual/mergeSource0>
+<http://vivo.adminapp.local/individual/mergeConfig0>
         a                       <http://vivoweb.org/ontology/adminapp/DataTask> , <http://vivoweb.org/ontology/adminapp/DataMerge> , owl:Thing;
         rdfs:label              "Standard merge config"@en-US ;
-        vitro:modTime           "2017-02-21T12:45:37"^^xsd:dateTime ;
         vitro:mostSpecificType  <http://vivoweb.org/ontology/adminapp/DataMerge> ;
         <http://vivoweb.org/ontology/adminapp/graphURI>
-                "http://vivo.adminapp.local/graph/merge"^^xsd:anyURI ;
-        <http://vivoweb.org/ontology/adminapp/serviceURI>
-                "http://localhost:8080/adminapp/"^^xsd:anyURI ;
+                "http://vitro.mannlib.cornell.edu/a/graph/MergeGraph"^^xsd:anyURI ;
         <http://vivoweb.org/ontology/adminapp/usesSparqlEndpoint>
-                <http://vivo.adminapp.local/individual/sparqlEndpoint2> .
+                <http://vivo.adminapp.local/individual/sparqlEndpoint2> ;
+        <http://vivoweb.org/ontology/adminapp/hasMergeRule>
+        		<http://vivo.adminapp.local/individual/mergeRulePersons0> ;
+        <http://vivoweb.org/ontology/adminapp/hasMergeRule>
+        		<http://vivo.adminapp.local/individual/mergeRulePublications0> ;
+        <http://vivoweb.org/ontology/adminapp/hasMergeRule>
+        		<http://vivo.adminapp.local/individual/mergeRuleOrganizations0> .
+        		
+
+####################################################################################
+###
+### MERGES RULES
+###
+####################################################################################
+
+### persons
+
+<http://vivo.adminapp.local/individual/mergeRulePersons0>
+        a                       <http://vivoweb.org/ontology/adminapp/MergeRule>;
+        rdfs:label              "PersonsByName"@en-US ;
+        <http://vivoweb.org/ontology/adminapp/mergeRuleClass>
+				foaf:Person ;
+		<http://vivoweb.org/ontology/adminapp/priority>
+				0 ;
+		<http://vivoweb.org/ontology/adminapp/hasAtom>
+			<http://vivo.adminapp.local/individual/mergeRulePattern0> .
+
+<http://vivo.adminapp.local/individual/mergeRulePattern0>
+        a                       <http://vivoweb.org/ontology/adminapp/MergeRuleAtom>;
+        rdfs:label              "simularName"@en-US ;
+        <http://vivoweb.org/ontology/adminapp/mergeAtomDataProperty>
+                rdfs:label ;
+        <http://vivoweb.org/ontology/adminapp/matchDegree>
+        		80 .
+
+### publications
+
+<http://vivo.adminapp.local/individual/mergeRulePublications0>
+        a                       <http://vivoweb.org/ontology/adminapp/MergeRule>;
+        rdfs:label              "PublicationsByName"@en-US ;
+        <http://vivoweb.org/ontology/adminapp/mergeRuleClass>
+				bibo:Document ;
+		<http://vivoweb.org/ontology/adminapp/priority>
+				1 ;
+		<http://vivoweb.org/ontology/adminapp/hasAtom>
+			<http://vivo.adminapp.local/individual/mergeRulePattern0> .
+			
+### organizations
+
+<http://vivo.adminapp.local/individual/mergeRuleOrganizations0>
+        a                       <http://vivoweb.org/ontology/adminapp/MergeRule>;
+        rdfs:label              "OrganizationsByName"@en-US ;
+        <http://vivoweb.org/ontology/adminapp/mergeRuleClass>
+				foaf:Organization ;
+		<http://vivoweb.org/ontology/adminapp/priority>
+				2 ;
+		<http://vivoweb.org/ontology/adminapp/hasAtom>
+			<http://vivo.adminapp.local/individual/mergeRulePattern0> .
 

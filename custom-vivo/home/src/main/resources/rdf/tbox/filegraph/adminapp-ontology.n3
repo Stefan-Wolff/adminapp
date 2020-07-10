@@ -47,6 +47,7 @@
 
 :graphURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
+	rdfs:domain :DataTask ;
 	rdfs:range xsd:anyURI ;
 	vitro:displayRankAnnot 70 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
@@ -105,7 +106,7 @@
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	rdfs:label "HTTP method"@en .
+	rdfs:label "HTTP method (GET | POST)"@en .
 	
 #
 # http://vivoweb.org/ontology/adminapp/httpParam
@@ -132,6 +133,20 @@
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "HTTP header"@en .
+
+#
+# http://vivoweb.org/ontology/adminapp/responseFormat
+	
+:responseFormat a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:domain :DataIngest ;
+	rdfs:range xsd:string ;
+	vitro:displayRankAnnot 24 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "Response data format (RDF/XML | N-TRIPLE | TURTLE | N3)"@en .
 
 # 
 # http://vivoweb.org/ontology/adminapp/username
@@ -231,13 +246,6 @@
 :DataIngest a owl:Class ;
 	rdfs:subClassOf :DataTask ;
 	rdfs:label "Data Ingest"@en .
-	
-# 
-# http://vivoweb.org/ontology/adminapp/TurtleDataIngest
-
-:TurtleDataIngest a owl:Class ;
-	rdfs:subClassOf :DataIngest ;
-	rdfs:label "Turtle Data Ingest"@en .
 
 # 
 # http://vivoweb.org/ontology/adminapp/DataMerge

@@ -5,7 +5,6 @@ public class DataTaskStatus {
     private boolean ok = true;
     private String message;
     private boolean isRunning;
-    private int completionPercentage;
     private long totalRecords;
 
 
@@ -17,13 +16,10 @@ public class DataTaskStatus {
         return this.message;
     }
 
-    public synchronized boolean isRunning() {
+    public boolean isRunning() {
         return this.isRunning;
     }
 
-    public int getCompletionPercentage() {
-        return this.completionPercentage;
-    }
 
     public long getTotalRecords() {
         return this.totalRecords;
@@ -38,12 +34,8 @@ public class DataTaskStatus {
         this.message = message;
     }
 
-    public synchronized void setRunning(boolean running) {
+    public void setRunning(boolean running) {
         this.isRunning = running;
-    }
-
-    public void setCompletionPercentage(int completionPercentage) {
-        this.completionPercentage = completionPercentage;
     }
 
     public void setTotalRecords(long totalRecords) {

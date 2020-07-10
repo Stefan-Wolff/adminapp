@@ -21,7 +21,7 @@ import org.apache.jena.rdf.model.StmtIterator;
 import org.joda.time.LocalDateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
+import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 
 import edu.cornell.mannlib.vitro.webapp.config.ConfigurationProperties;
 import edu.cornell.mannlib.vitro.webapp.modelaccess.ModelAccess;
@@ -39,7 +39,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     private ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
     private HashMap<String, ScheduledFuture<?>> scheduledTasks = new HashMap<String, ScheduledFuture<?>>();
     private Model aboxModel;
-    private DataSourceDao dataSourceDao;
+    private DataTaskDao dataTaskDao;
     private RDFService rdfService;
     private static final String DATASOURCE_CONFIG_PROPERTY_PREFIX = "datasource.";
     private Map<String, String> datasourceConfigurationProperties = new HashMap<String, String>();
@@ -94,7 +94,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         try {
             this.aboxModel = ModelAccess.on(sce.getServletContext()).getOntModelSelector().getABoxModel();
             this.rdfService = ModelAccess.on(sce.getServletContext()).getRDFService();
-            this.dataSourceDao = new DataSourceDao(new RDFServiceModelConstructor(this.rdfService), this.aboxModel);
+            this.dataTaskDao = new DataTaskDao(new RDFServiceModelConstructor(this.rdfService), this.aboxModel);
             
         } catch (Exception e) {
             throw new RuntimeException(this.getClass().getSimpleName() 
@@ -138,7 +138,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     
     
     private void scheduleDataSources() {
-        for(DataTask task : this.dataSourceDao.listIngestTasks()) {
+        for(DataTask task : this.dataTaskDao.listIngestTasks()) {
             schedule(task);
         }
     }
@@ -159,7 +159,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         muteChangeListener(dataSourceURI);
         aboxModel.removeAll(
                 aboxModel.getResource(dataSourceURI),
-                aboxModel.getProperty(DataSourceDao.NEXTUPDATE), 
+                aboxModel.getProperty(DataTaskDao.NEXTUPDATE), 
                 null);
         unmuteChangeListener(dataSourceURI);
         return;
@@ -170,7 +170,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         muteChangeListener(dataSourceURI);
         aboxModel.add(
                 aboxModel.getResource(dataSourceURI),
-                aboxModel.getProperty(DataSourceDao.NEXTUPDATE), 
+                aboxModel.getProperty(DataTaskDao.NEXTUPDATE), 
                 nextUpdate.toString(DateTimeFormat.forPattern(
                         DATE_TIME_PATTERN)), XSDDatatype.XSDdateTime);
         unmuteChangeListener(dataSourceURI);
@@ -232,7 +232,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     }
 
     private DataTask loadTask(String dataSourceURI) {
-        DataTask result = this.dataSourceDao.getDataSource(dataSourceURI);
+        DataTask result = this.dataTaskDao.getDataSource(dataSourceURI);
         if(result == null) {
             throw new RuntimeException("Task " + dataSourceURI + " not found");
         }
@@ -251,7 +251,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             LocalDateTime now = new LocalDateTime();
             String timestampStr = now.toString(DateTimeFormat.forPattern(DATE_TIME_PATTERN));
             Resource dataSource = model.getResource(dataSourceURI);
-            Property lastUpdate = model.getProperty(DataSourceDao.LASTUPDATE);
+            Property lastUpdate = model.getProperty(DataTaskDao.LASTUPDATE);
             model.removeAll(dataSource, lastUpdate, null);
             model.add(dataSource, lastUpdate, timestampStr, XSDDatatype.XSDdateTime);
         }
@@ -262,7 +262,8 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
 
         private String dataSourceURI;
         private DataSourceTimestamper timestamper;
-        private DataTask task = null;
+        private DataTask task;
+        private Thread thread;
         
         public DataSourceRunner(String dataSourceURI, DataSourceTimestamper timestamper) {
             this.dataSourceURI = dataSourceURI;
@@ -276,11 +277,12 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
                 return;
             }
             
+            this.thread = Thread.currentThread();
             runnings.addRunning(dataSourceURI, this);
+            
             task = loadTask(dataSourceURI);
             timestamper.timestampLastUpdate(dataSourceURI);
             
-            task.getStatus().setRunning(true);
             task.getStatus().setStatusOk(true);
             task.getStatus().setMessage(null);
             
@@ -288,7 +290,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             boolean taskOK = true;
             
             try {
-                resultNum = task.run(DataSourceScheduler.this.dataSourceDao);
+                resultNum = task.run(DataSourceScheduler.this.dataTaskDao);
                 
             } catch (Exception e1) {
                 log.error("Running of service failed: " + dataSourceURI, e1);
@@ -298,12 +300,12 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             }
             
             task.getStatus().setTotalRecords(resultNum);
-            dataSourceDao.saveTaskStatus(task.getStatus(), dataSourceURI);
+            dataTaskDao.saveTaskStatus(task.getStatus(), dataSourceURI);
             
             schedule(task);
             
             if (taskOK) {
-                for(DataTask nextTask : dataSourceDao.listIngestTasks()) {
+                for(DataTask nextTask : dataTaskDao.listIngestTasks()) {
                     if(dataSourceURI.equals(nextTask.getScheduleAfterURI())) {
                         log.info("Starting service " + nextTask.getURI() + " scheduled as run after: " + dataSourceURI);
                         startNow(nextTask.getURI());
@@ -316,8 +318,9 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         
         
         protected void stop() {
-            if (null != task) {
-                task.getStatus().setRunning(false);
+            if (null != thread) {
+                log.info("Tasked stopped!");
+                thread.interrupt();
             }
         }
         
@@ -377,13 +380,13 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
                             stmt.getSubject().asResource().getURI())) {
                 continue;
             }
-            if(DataSourceDao.NEXTUPDATE.equals(stmt.getPredicate().getURI())
-                    || DataSourceDao.UPDATEFREQUENCY.equals(stmt.getPredicate().getURI())
-                    || DataSourceDao.SCHEDULEAFTER.equals(stmt.getPredicate().getURI())
+            if(DataTaskDao.NEXTUPDATE.equals(stmt.getPredicate().getURI())
+                    || DataTaskDao.UPDATEFREQUENCY.equals(stmt.getPredicate().getURI())
+                    || DataTaskDao.SCHEDULEAFTER.equals(stmt.getPredicate().getURI())
                     ) {
                 if(stmt.getSubject().isURIResource()) {
                     log.debug("Scheduling based on heard change");
-                    schedule(dataSourceDao.getDataSource(
+                    schedule(dataTaskDao.getDataSource(
                             stmt.getSubject().asResource().getURI()));   
                 }                
             }
@@ -416,6 +419,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             
             if (null != instance) {
                 instance.stop();
+                uris.remove(uri);
             }
         }
         

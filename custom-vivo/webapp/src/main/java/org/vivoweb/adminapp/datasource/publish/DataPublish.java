@@ -3,7 +3,7 @@ package org.vivoweb.adminapp.datasource.publish;
 import java.io.IOException;
 
 import org.vivoweb.adminapp.datasource.DataTask;
-import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
+import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 
 /**
  * Implementation of data publish task.
@@ -18,7 +18,7 @@ public class DataPublish extends DataTask {
     }
 
     @Override
-    public long run(DataSourceDao dataSourceDao) throws IOException {
+    public long run(DataTaskDao dataSourceDao) throws IOException {
         // TODO Auto-generated method stub
         return 0;
     }

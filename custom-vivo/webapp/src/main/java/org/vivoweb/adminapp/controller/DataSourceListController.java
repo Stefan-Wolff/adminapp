@@ -11,7 +11,7 @@ import org.apache.jena.rdf.model.Model;
 import org.vivoweb.adminapp.datasource.DataSourceScheduler;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.RDFServiceModelConstructor;
-import org.vivoweb.adminapp.datasource.dao.DataSourceDao;
+import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 
 import edu.cornell.mannlib.vitro.webapp.auth.permissions.SimplePermission;
 import edu.cornell.mannlib.vitro.webapp.auth.requestedAction.AuthorizationRequest;
@@ -42,7 +42,7 @@ public class DataSourceListController extends FreemarkerHttpServlet {
     @Override
     protected ResponseValues processRequest(VitroRequest vreq) throws IOException {
         Model aboxModel = ModelAccess.on(this.getServletContext()).getOntModelSelector().getABoxModel();
-        DataSourceDao dsm = new DataSourceDao(new RDFServiceModelConstructor(vreq.getRDFService()), aboxModel);
+        DataTaskDao dsm = new DataTaskDao(new RDFServiceModelConstructor(vreq.getRDFService()), aboxModel);
         String type = vreq.getParameter("type");
         log.debug("Data source type: " + type);
         

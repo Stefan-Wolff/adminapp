@@ -1,19 +1,26 @@
-${stylesheets.add('<link rel="stylesheet" href="${urls.theme}/css/adminapp.css" />')}
+${stylesheets.add('<link rel="stylesheet" href="${urls.base}/css/adminapp.css" />')}
 ${stylesheets.add('<meta http-equiv="refresh" content="60">')}
 
-<#assign pageTitle = "Data Sources">
-<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FTurtleDataIngest">
+<#assign pageTitle = "Ingest Configuration">
+<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataIngest">
 
-<#if type?has_content && type == "merge">
-	<#assign pageTitle = "Merge Configurations">
-	<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataMerge">
-<#elseif type?has_content && type == "publish">
-	<#assign pageTitle = "Publish Configurations">
-	<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataPublish">
-</#if>
+<h2 class="processing-tabs">
+	<#if type?has_content && type == "merge">
+		<#assign pageTitle = "Merge Configuration">
+		<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataMerge">
+		
+		<a href="?">Ingest</a> | Merge | <a href="?type=publish">Publish</a>
+	<#elseif type?has_content && type == "publish">
+		<#assign pageTitle = "Publish Configuration">
+		<#assign addURI = "http%3A%2F%2Fvivoweb.org%2Fontology%2Fadminapp%2FDataPublish">
+		
+		<a href="?">Ingest</a> | <a href="?type=merge">Merge</a> | Publish
+	<#else>
 
-<h2>${pageTitle}
-<a href="${urls.base}/editForm?controller=Entity&VClassURI=${addURI}"><img class="add-individual" src="${urls.images}/individual/addIcon.gif" alt="${i18n().add}" /></a>
+		Ingest | <a href="?type=merge">Merge</a> | <a href="?type=publish">Publish</a>
+	</#if>
+
+	<span class="add-config"><a href="${urls.base}/editForm?controller=Entity&VClassURI=${addURI}"><img class="add-individual" src="${urls.images}/individual/addIcon.gif" alt="${i18n().add}" /> ${pageTitle}</a></span>
 </h2>
 
 <table class="adminTable">
@@ -22,9 +29,8 @@ ${stylesheets.add('<meta http-equiv="refresh" content="60">')}
 	    <td>Priority</td>
 	    <td></td>
         <td>Configuration</td>
-	    <td>Last updated</td>
-	    <td>Next update</td>
-	    <td>% done</td>
+	    <td>Last run</td>
+	    <td>Next run</td>
 	    <td>Last records</td>
 	    <td>Status</td>
 	</tr>
@@ -69,7 +75,6 @@ ${stylesheets.add('<meta http-equiv="refresh" content="60">')}
 		    ---
 	        </#if>
         </td>
-	    <td>${dataSource.status.completionPercentage}</td>
 	    <td>
 	    	<#if dataSource.status.running>
 	    		...
