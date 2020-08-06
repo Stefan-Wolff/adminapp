@@ -11,6 +11,11 @@ span.statusError {
 
 table.adminTable {
     width:100%;
+	font-size: 14px;
+}
+
+.processing-tabs {
+	font-size: 18px;
 }
 
 table.adminTable td {
@@ -24,4 +29,23 @@ table.adminTable thead td {
 .add-config {
 	float: right;
 	font-size: medium;
+}
+
+.clear-btn {
+	background: #222 url(../images/alert-overlay.png) repeat-x;
+	display: inline-block;
+	padding: 5px 18px 7px;
+	color: #fff;
+	text-decoration: none;
+	-webkit-border-radius: 4px;
+	border-radius: 4px;
+	position: relative;
+	border: 0;
+	margin: 0;
+	font-size: 14px;
+	font-weight: normal;
+	line-height: 1;
+	margin-right: .6em;
+	margin-top: .5em;
+	margin-bottom: .5em;
 }

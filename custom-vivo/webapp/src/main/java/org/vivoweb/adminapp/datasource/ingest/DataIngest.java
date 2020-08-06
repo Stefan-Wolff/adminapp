@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.jena.rdf.model.Model;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
-import org.vivoweb.adminapp.datasource.util.http.HttpUtils;
+import org.vivoweb.adminapp.datasource.util.HttpUtils;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
@@ -17,7 +19,11 @@ import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
  */
 public class DataIngest extends DataTask {
 
+    private static final Log log = LogFactory.getLog(DataIngest.class);
+    public static final String INGEST_GRAPH_PREFIX = "http://vitro.mannlib.cornell.edu/a/graph/ingest/";
+    
     private final String serviceURI;
+    private final String resultsGraphURI;
     private final String httpMethod;
     private final String responseFormat;
     private Map<String, String> httpParams = new HashMap<String, String>();
@@ -26,6 +32,9 @@ public class DataIngest extends DataTask {
     
     public DataIngest(String taskUri, String serviceUri, String httpMethod, String responseFormat) {
         super(taskUri);
+        
+        String[] uriParts = taskUri.split("/");
+        resultsGraphURI = INGEST_GRAPH_PREFIX + uriParts[uriParts.length-1];  
         
         this.serviceURI = serviceUri;
         this.httpMethod = httpMethod;
@@ -46,16 +55,35 @@ public class DataIngest extends DataTask {
         }
         
         HttpUtils httpUtil = new HttpUtils();
-        Model ingestData = httpUtil.getRDFResponse(serviceURI, httpMethod, httpParams, httpHeaders, responseFormat);
+        
+        log.info("start ingest from " + getServiceURI());
+        
+        dataDao.saveProgress(getURI(), 1);
+        Model ingestData = httpUtil.getRDFResponse(getServiceURI(), httpMethod, httpParams, httpHeaders, responseFormat);
+        dataDao.saveProgress(getURI(), 50);
         
         SparqlEndpoint endpoint = new SparqlEndpoint(this.getEndpointParams());
+        
+        log.info("ingest into graph: " + getResultsGraphURI());
         endpoint.clear(getResultsGraphURI());
-        endpoint.writeModel(ingestData, getResultsGraphURI());
+        dataDao.saveProgress(getURI(), 51);
+        endpoint.writeModel(ingestData, getResultsGraphURI(), dataDao, getURI());
         
         return ingestData.size();
     }
 
     
+    
+    public String getServiceURI() {
+        return serviceURI;
+    }
+
+
+    public String getResultsGraphURI() {
+        return resultsGraphURI;
+    }
+
+
     public void addHttpParam(String key, String value) {
         httpParams.put(key, value);
     }
@@ -65,5 +93,10 @@ public class DataIngest extends DataTask {
         httpHeaders.put(key, value);
     }
 
+
+    @Override
+    public boolean indexingEnabled() {
+        return true;
+    }
     
 }

@@ -12,7 +12,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Resource;
-import org.vivoweb.adminapp.datasource.DataTask;
 
 import edu.cornell.mannlib.vitro.webapp.beans.Individual;
 import edu.cornell.mannlib.vitro.webapp.controller.VitroRequest;
@@ -37,7 +36,7 @@ public class IndividualProvenanceDataGetter implements DataGetter {
             String dataGetterURI){
         try {
             log.debug("Constructing datagetter");
-            this.vreq = vreq; 
+            this.vreq = vreq;
         } catch (Exception e) {
             // because the code that invokes this by reflection is stupid
             // and doesn't log the nested exception
@@ -79,40 +78,23 @@ public class IndividualProvenanceDataGetter implements DataGetter {
             log.error(e, e);
             throw new RuntimeException(e);
         }
-        Set<String> graphURISet = new HashSet<String>();
         for (String graph : graphGetter.getGraphURIs()) {
             String[] graphParts = graph.split("-", 2);
             String graphURI = graphParts[0];
-            String dateTime = null;
-            if(graphParts.length > 1) {
-                dateTime = graphParts[1].replaceAll("T", " ");
-            }
             if(KB2_GRAPH.equals(graphURI) || INF_GRAPH.equals(graphURI)) {
                 continue;
             }
-            // TODO: fertig implementieren
-            //DataTask dataSource = mgr.getDataSourceByGraphURI(graphURI);
-            DataTask dataSource = null;
-            if (dataSource != null) {
-                log.debug("Found data source " + dataSource.getName() + 
-                        " for individual " + individualURI);
-                if(!graphURISet.contains(graphURI)) {
-                    graphURISet.add(graphURI);
-                    sources.add(new Source(dataSource.getName(), 
-                        dataSource.getURI(), dateTime));
+
+            log.debug("Checking for merge rule with URI " + graphURI);
+            try {
+                Individual mergeRuleInd = vreq.getWebappDaoFactory()
+                        .getIndividualDao().getIndividualByURI(graphURI);
+                if(mergeRuleInd != null) {
+                    sources.add(new Source(
+                            mergeRuleInd.getName(), mergeRuleInd.getURI(), null));
                 }
-            } else {
-                log.debug("Checking for merge rule with URI " + graphURI);
-                try {
-                    Individual mergeRuleInd = vreq.getWebappDaoFactory()
-                            .getIndividualDao().getIndividualByURI(graphURI);
-                    if(mergeRuleInd != null) {
-                        sources.add(new Source(
-                                mergeRuleInd.getName(), mergeRuleInd.getURI(), null));
-                    }
-                } catch (Exception e) {
-                    log.error(e, e);
-                }
+            } catch (Exception e) {
+                log.error(e, e);
             }
         }
         long duration = System.currentTimeMillis() - start;

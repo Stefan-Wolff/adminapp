@@ -87,7 +87,6 @@ edu.cornell.mannlib.vitro.webapp.dao.jena.VClassGroupCache$Setup
 edu.cornell.mannlib.vivo.orcid.OrcidContextSetup
 
 # adminapp addition
-org.vivoweb.adminapp.servlet.setup.FauxPropertyLabeler
 org.vivoweb.adminapp.datasource.DataSourceScheduler
 
 # Register the extensions to the IndividualResponseBuilder (e.g. alt metric, plum analytics)

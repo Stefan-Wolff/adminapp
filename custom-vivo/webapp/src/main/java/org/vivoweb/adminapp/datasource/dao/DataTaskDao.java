@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
@@ -16,6 +17,8 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
+import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormat;
 import org.vivoweb.adminapp.datasource.DataSourceUpdateFrequency;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.DataTaskStatus;
@@ -32,6 +35,7 @@ public class DataTaskDao {
     private static final String DATAMERGE = ADMIN_APP_TBOX + "DataMerge";
     private static final String DATAPUBLISH = ADMIN_APP_TBOX + "DataPublish";
     private static final String USESSPARQLENDPOINT = ADMIN_APP_TBOX + "usesSparqlEndpoint";
+    private static final String PUBLISHTOENDPOINT = ADMIN_APP_TBOX + "publishToEndpoint";
     private static final String PRIORITY = ADMIN_APP_TBOX + "priority";
     private static final String SERVICEURI = ADMIN_APP_TBOX + "serviceURI";
     private static final String HTTPMETHOD = ADMIN_APP_TBOX + "httpMethod";
@@ -39,19 +43,19 @@ public class DataTaskDao {
     private static final String HTTPHEADER = ADMIN_APP_TBOX + "httpHeader";
     private static final String RESPONSEFORMAT = ADMIN_APP_TBOX + "responseFormat";
     private static final String RESULTNUM = ADMIN_APP_TBOX + "resultNum";
+    private static final String PROGRESS = ADMIN_APP_TBOX + "progress";
     private static final String ISOK = ADMIN_APP_TBOX + "isOK";
     private static final String MESSAGE = ADMIN_APP_TBOX + "message";
     private static final String ENDPOINTURI = ADMIN_APP_TBOX + "endpointURI";
     private static final String ENDPOINTUPDATEURI = ADMIN_APP_TBOX + "endpointUpdateURI";
     private static final String ENDPOINTUSERNAME = ADMIN_APP_TBOX + "username";
     private static final String ENDPOINTPASSWORD = ADMIN_APP_TBOX + "password";
-    private static final String GRAPHURI = ADMIN_APP_TBOX + "graphURI";
-    public static final String LASTUPDATE = ADMIN_APP_TBOX + "lastUpdate";
+    private static final String LASTUPDATE = ADMIN_APP_TBOX + "lastUpdate";
     public static final String NEXTUPDATE = ADMIN_APP_TBOX + "nextUpdate";
+    public static final String DATE_TIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss";
     public static final String UPDATEFREQUENCY = ADMIN_APP_TBOX + "updateFrequency";
     public static final String SCHEDULEAFTER = ADMIN_APP_TBOX + "scheduleAfter";
-    
-    private static final String MOSTSPECIFICTYPE = "http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType";
+    public static final String MOSTSPECIFICTYPE = "http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType";
     
     private static final Log log = LogFactory.getLog(DataTaskDao.class);
     
@@ -74,17 +78,17 @@ public class DataTaskDao {
     }
     
     public String getDataSourcesQuery(String taskClass) {
-        return "CONSTRUCT { " +
-                "    ?taskURI ?p ?o . " +
-                "    ?endpoint ?endpointP ?endpointO . " +
-                "} WHERE { " +
-                "    ?taskURI a <" + taskClass + "> . " +
-                "    ?taskURI ?p ?o . " +
-                "    OPTIONAL { " +
-                "        ?taskURI <" + USESSPARQLENDPOINT +"> ?endpoint . " +
-                "        ?endpoint ?endpointP ?endpointO " +
-                "    }" +
-                "}";        
+        return "CONSTRUCT { \n" +
+                "    ?taskURI ?p ?o . \n" +
+                "    ?endpoint ?endpointP ?endpointO . \n" +
+                "} WHERE { \n" +
+                "    ?taskURI a <" + taskClass + "> . \n" +
+                "    ?taskURI ?p ?o . \n" +
+                "    OPTIONAL { \n" +
+                "        ?taskURI ?endpointOP ?endpoint . \n" +
+                "        ?endpoint ?endpointP ?endpointO \n" +
+                "    } \n" +
+                "} \n";        
     }
     
     public List<DataTask> listIngestTasks() {
@@ -106,7 +110,7 @@ public class DataTaskDao {
         ResIterator resIt = model.listResourcesWithProperty(RDF.type, model.getResource(DATATASK));
         for (Resource res : resIt.toList()) {
             if(res.isURIResource()) {
-                result.add(createTaskByModel(res.getURI(), model));
+                result.add(createTaskByClassURI(res.getURI(), model));
             }
         }
         
@@ -117,21 +121,32 @@ public class DataTaskDao {
     
     
     public void saveTaskStatus(DataTaskStatus status, String taskURI) {
-        aboxModel.removeAll(aboxModel.getResource(taskURI), aboxModel.getProperty(RESULTNUM), null);
-        aboxModel.removeAll(aboxModel.getResource(taskURI), aboxModel.getProperty(ISOK), null);
-        aboxModel.removeAll(aboxModel.getResource(taskURI), aboxModel.getProperty(MESSAGE), null);
+        Resource taskResource = aboxModel.getResource(taskURI);
         
-        aboxModel.addLiteral(aboxModel.getResource(taskURI), aboxModel.getProperty(RESULTNUM), status.getTotalRecords());
-        aboxModel.addLiteral(aboxModel.getResource(taskURI), aboxModel.getProperty(ISOK), status.isStatusOk());
+        aboxModel.removeAll(taskResource, aboxModel.getProperty(RESULTNUM), (RDFNode) null);
+        aboxModel.removeAll(taskResource, aboxModel.getProperty(ISOK), (RDFNode) null);
+        aboxModel.removeAll(taskResource, aboxModel.getProperty(MESSAGE), (RDFNode) null);
+        aboxModel.removeAll(taskResource, aboxModel.getProperty(LASTUPDATE), (RDFNode) null);
+        
+        aboxModel.addLiteral(taskResource, aboxModel.getProperty(RESULTNUM), status.getTotalRecords());
+        aboxModel.addLiteral(taskResource, aboxModel.getProperty(ISOK), status.isStatusOk());
         
         if (null != status.getMessage()) {
-            aboxModel.add(aboxModel.getResource(taskURI), aboxModel.getProperty(MESSAGE), status.getMessage());
+            aboxModel.add(taskResource, aboxModel.getProperty(MESSAGE), status.getMessage());
         }
+        
+        String timestamp = new LocalDateTime().toString(DateTimeFormat.forPattern(DATE_TIME_PATTERN));
+        aboxModel.add(taskResource, aboxModel.getProperty(LASTUPDATE), timestamp, XSDDatatype.XSDdateTime);
     }
     
     public void saveResultNum(String URI, long num) {
         aboxModel.removeAll(aboxModel.getResource(URI), aboxModel.getProperty(RESULTNUM), null);
         aboxModel.addLiteral(aboxModel.getResource(URI), aboxModel.getProperty(RESULTNUM), num);
+    }
+    
+    public void saveProgress(String URI, int percent) {
+        aboxModel.removeAll(aboxModel.getResource(URI), aboxModel.getProperty(PROGRESS), null);
+        aboxModel.addLiteral(aboxModel.getResource(URI), aboxModel.getProperty(PROGRESS), percent);
     }
     
     private Model construct(String queryStr) {
@@ -140,12 +155,10 @@ public class DataTaskDao {
 
     public DataTask getDataSource(String URI) {
         String dataSourceQuery = getAllDataSourcesQuery().replaceAll("\\?taskURI", "<" + URI + ">");
-        return createTaskByModel(URI, construct(dataSourceQuery));
+        return createTaskByClassURI(URI, construct(dataSourceQuery));
     }
     
-
-
-    private DataTask createTaskByModel(String URI, Model model) {
+    private DataTask createTaskByClassURI(String URI, Model model) {
         String classURI = getURIValue(URI, MOSTSPECIFICTYPE, model);
         DataTask result;
         
@@ -211,7 +224,7 @@ public class DataTaskDao {
     }
     
     private DataPublish createPublishTask(String URI, Model model) {
-        DataPublish result = new DataPublish(URI);
+        DataPublish result = new DataPublish(URI, getEndpointParams(URI, PUBLISHTOENDPOINT, model));
         
         initTask(URI, model, result);
         
@@ -222,8 +235,8 @@ public class DataTaskDao {
         task.setName(getStringValue(URI, RDFS.label.getURI(), model));
         task.setLastUpdate(getStringValue(URI, LASTUPDATE, model));
         task.setNextUpdate(getStringValue(URI, NEXTUPDATE, model));
-        task.setPriority(getIntValue(URI, PRIORITY, model));
-        task.setResultsGraphURI(getStringValue(URI, GRAPHURI, model)); 
+        task.setPriority(getIntValue(URI, PRIORITY, model, Integer.MAX_VALUE));
+        task.setEndpointParams(getEndpointParams(URI, USESSPARQLENDPOINT, model));
         
         task.setUpdateFrequency(DataSourceUpdateFrequency.valueByURI(getURIValue(URI, UPDATEFREQUENCY, model)));
         task.setScheduleAfterURI(getURIValue(URI, SCHEDULEAFTER, model));
@@ -231,21 +244,21 @@ public class DataTaskDao {
         task.getStatus().setTotalRecords(getLongValue(URI, RESULTNUM, model, 0));
         task.getStatus().setStatusOk(getBooleanValue(URI, ISOK, model, true));
         task.getStatus().setMessage(getStringValue(URI, MESSAGE, model));
-
-        StmtIterator endpit = model.listStatements(model.getResource(URI), model.getProperty(USESSPARQLENDPOINT), (RDFNode) null);
-        for (Statement current : endpit.toList()) {
-            if(current.getObject().isURIResource()) {
-                String endpoint = current.getObject().asResource().getURI();
-                SparqlEndpointParams endpointParams = new SparqlEndpointParams();
-                endpointParams.setEndpointURI(getStringValue(endpoint, ENDPOINTURI, model));
-                endpointParams.setEndpointUpdateURI(getStringValue(endpoint, ENDPOINTUPDATEURI, model));
-                endpointParams.setUsername(getStringValue(endpoint, ENDPOINTUSERNAME, model));
-                endpointParams.setPassword(getStringValue(endpoint, ENDPOINTPASSWORD, model));
-                task.setEndpointParams(endpointParams); 
-                break;
-            }
-        }
+        task.getStatus().setProgress(getIntValue(URI, PROGRESS, model, 0));
     }
+    
+    private SparqlEndpointParams getEndpointParams(String taskURI, String propertyURI, Model model) {
+        String uri = getURIValue(taskURI, propertyURI, model);
+               
+        SparqlEndpointParams result = new SparqlEndpointParams();
+        result.setEndpointURI(getStringValue(uri, ENDPOINTURI, model));
+        result.setEndpointUpdateURI(getStringValue(uri, ENDPOINTUPDATEURI, model));
+        result.setUsername(getStringValue(uri, ENDPOINTUSERNAME, model));
+        result.setPassword(getStringValue(uri, ENDPOINTPASSWORD, model));
+        
+        return result;
+    }
+    
     
     private String getStringValue(String subjectURI, String propertyURI, Model model) {
         StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
@@ -279,8 +292,7 @@ public class DataTaskDao {
     }
     
     
-    private int getIntValue(String subjectURI, String propertyURI, 
-            Model model) {
+    private int getIntValue(String subjectURI, String propertyURI, Model model, int notFound) {
         StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
                 model.getProperty(propertyURI), (RDFNode) null);
         try {
@@ -295,7 +307,7 @@ public class DataTaskDao {
                     }
                 }
             }
-            return Integer.MAX_VALUE;
+            return notFound;
         } finally {
             sit.close();
         }

@@ -1,16 +1,16 @@
 package org.vivoweb.adminapp.controller;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.jena.rdf.model.Model;
 import org.vivoweb.adminapp.datasource.DataSourceScheduler;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.RDFServiceModelConstructor;
+import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
 import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 
 import edu.cornell.mannlib.vitro.webapp.auth.permissions.SimplePermission;
@@ -30,7 +30,6 @@ import edu.cornell.mannlib.vitro.webapp.modelaccess.ModelAccess;
 public class DataSourceListController extends FreemarkerHttpServlet {
 
     private static final String LIST_DATA_SOURCES_TEMPLATE = "listDataSources.ftl";
-    private static final Log log = LogFactory.getLog(DataSourceListController.class);
     protected static final AuthorizationRequest REQUIRED_ACTIONS = 
             SimplePermission.USE_MISCELLANEOUS_ADMIN_PAGES.ACTION;
     
@@ -44,33 +43,36 @@ public class DataSourceListController extends FreemarkerHttpServlet {
         Model aboxModel = ModelAccess.on(this.getServletContext()).getOntModelSelector().getABoxModel();
         DataTaskDao dsm = new DataTaskDao(new RDFServiceModelConstructor(vreq.getRDFService()), aboxModel);
         String type = vreq.getParameter("type");
-        log.debug("Data source type: " + type);
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put("type", vreq.getParameter("type"));
         
-        List<DataTask> sources;
+        List<DataTask> tasks;
         if("merge".equals(type)) {
-            sources = dsm.listMergeTasks();
+            tasks = dsm.listMergeTasks();
         } else if("publish".equals(type)) {
-            sources = dsm.listPublishTasks();
+            tasks = dsm.listPublishTasks();
         } else {
-            sources = dsm.listIngestTasks();
+            tasks = dsm.listIngestTasks();
+            List<SparqlEndpointParams> endpointParams = new ArrayList<SparqlEndpointParams>(tasks.size());
+            
+            for (DataTask task : tasks) {
+                endpointParams.add(task.getEndpointParams());
+            }
+            
+            data.put("endpoints", endpointParams);
         }
         
         DataSourceScheduler scheduler = DataSourceScheduler.getInstance(getServletContext());
-        for (DataTask task : sources) {
+        for (DataTask task : tasks) {
             String dataSourceURI = task.getURI();
             task.getStatus().setRunning(scheduler.isRunning(dataSourceURI));
         }
         
-        return doListDataSources(sources, vreq);
-    }    
-    
-    private TemplateResponseValues doListDataSources(List<DataTask> tasks, VitroRequest vreq) 
-                    throws IOException {
-        Map<String, Object> data = new HashMap<String, Object>();
         data.put("dataSources", tasks);
-        data.put("type", vreq.getParameter("type"));
+        
+        
         return new TemplateResponseValues(LIST_DATA_SOURCES_TEMPLATE, data);
-    }
+    }    
     
     
 }

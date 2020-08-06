@@ -21,9 +21,42 @@
         vitro:prohibitedFromUpdateBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
 
-<http://vivoweb.org/ontology/adminapp/MergeRuleAtom>
+<http://vivoweb.org/ontology/adminapp/SparqlEndpoint>
         <http://www.w3.org/2000/01/rdf-schema#label>
-                "Merge Rule Pattern"@en-US ;
+                "SPARQL Endpoint"@en-US ;
+        vitro:hiddenFromDisplayBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:hiddenFromPublishBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> ;
+        vitro:prohibitedFromUpdateBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
+
+<http://vivoweb.org/ontology/adminapp/TextMergeAtom>
+        <http://www.w3.org/2000/01/rdf-schema#label>
+                "Text Merge Pattern"@en-US ;
+        vitro:hiddenFromDisplayBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:hiddenFromPublishBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> ;
+        vitro:prohibitedFromUpdateBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
+                
+<http://vivoweb.org/ontology/adminapp/ObjectPropertyMergeAtom>
+        <http://www.w3.org/2000/01/rdf-schema#label>
+                "Object Property Merge Pattern"@en-US ;
+        vitro:hiddenFromDisplayBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:hiddenFromPublishBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> ;
+        vitro:prohibitedFromUpdateBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
+                
+<http://vivoweb.org/ontology/adminapp/AuthorGroupMergeAtom>
+        <http://www.w3.org/2000/01/rdf-schema#label>
+                "Author Group Merge Pattern"@en-US ;
         vitro:hiddenFromDisplayBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
         vitro:hiddenFromPublishBelowRoleLevelAnnot
@@ -46,6 +79,17 @@
 <http://vivoweb.org/ontology/adminapp/MergeRule>
         <http://www.w3.org/2000/01/rdf-schema#label>
                 "Merge Rule"@en-US ;
+        vitro:hiddenFromDisplayBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:hiddenFromPublishBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> ;
+        vitro:prohibitedFromUpdateBelowRoleLevelAnnot
+                <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
+                
+<http://vivoweb.org/ontology/adminapp/LinkedMergeRule>
+        <http://www.w3.org/2000/01/rdf-schema#label>
+                "Linked Merge Rule"@en-US ;
         vitro:hiddenFromDisplayBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
         vitro:hiddenFromPublishBelowRoleLevelAnnot

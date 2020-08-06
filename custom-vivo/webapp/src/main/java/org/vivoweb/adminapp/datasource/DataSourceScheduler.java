@@ -14,8 +14,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.joda.time.LocalDateTime;
@@ -31,6 +29,7 @@ import edu.cornell.mannlib.vitro.webapp.rdfservice.ModelChange.Operation;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.RDFService;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.RDFServiceException;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.impl.RDFServiceUtils;
+import edu.cornell.mannlib.vitro.webapp.utils.developer.listeners.DeveloperDisabledChangeListener;
 import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread;
 import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread.WorkLevel;
 
@@ -46,7 +45,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     private static final String DEFAULT_NAMESPACE_PROPERTY = "Vitro.defaultNamespace"; 
     private final Runnings runnings = new Runnings();
     
-    private static final String DATE_TIME_PATTERN = "yyyy-MM-dd'T'HH:mm:ss";
+
     
     private static final Log log = LogFactory.getLog(DataSourceScheduler.class);
     
@@ -172,14 +171,14 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
                 aboxModel.getResource(dataSourceURI),
                 aboxModel.getProperty(DataTaskDao.NEXTUPDATE), 
                 nextUpdate.toString(DateTimeFormat.forPattern(
-                        DATE_TIME_PATTERN)), XSDDatatype.XSDdateTime);
+                        DataTaskDao.DATE_TIME_PATTERN)), XSDDatatype.XSDdateTime);
         unmuteChangeListener(dataSourceURI);
     }
     
     private void computeNextUpdateAndScheduleTask(DataTask task) {
         try {
             LocalDateTime nextUpdate = DateTimeFormat.forPattern(
-                    DATE_TIME_PATTERN).parseDateTime(
+                    DataTaskDao.DATE_TIME_PATTERN).parseDateTime(
                             task.getNextUpdate()).toLocalDateTime();
             // Give ourselves a buffer of five minutes to avoid the chance 
             // of scheduling something that won't get run because the time
@@ -199,7 +198,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     }
     
     private void scheduleTask(String dataSourceURI, LocalDateTime dateTime) {
-        Runnable task = new DataSourceRunner(dataSourceURI, new DataSourceTimestamper(aboxModel));
+        Runnable task = new DataSourceRunner(dataSourceURI);
         this.scheduledTasks.put(dataSourceURI, scheduler.schedule(task, dateTime.toDateTime().toDate()));
         
         log.info("Scheduled " + dataSourceURI + " for " + dateTime.toString());
@@ -221,7 +220,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     }
     
     public void startNow(String dataSourceURI) {
-        DataSourceRunner runner = new DataSourceRunner(dataSourceURI, new DataSourceTimestamper(aboxModel));
+        DataSourceRunner runner = new DataSourceRunner(dataSourceURI);
         VitroBackgroundThread starter = new VitroBackgroundThread(runner, dataSourceURI + "-starter");
         starter.setWorkLevel(WorkLevel.WORKING);
         starter.start();
@@ -239,35 +238,15 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         return result;
     }
     
-    private class DataSourceTimestamper {
-        
-        private Model model;
-
-        public DataSourceTimestamper(Model model) {
-            this.model = model;
-        }
-        
-        private void timestampLastUpdate(String dataSourceURI) {
-            LocalDateTime now = new LocalDateTime();
-            String timestampStr = now.toString(DateTimeFormat.forPattern(DATE_TIME_PATTERN));
-            Resource dataSource = model.getResource(dataSourceURI);
-            Property lastUpdate = model.getProperty(DataTaskDao.LASTUPDATE);
-            model.removeAll(dataSource, lastUpdate, null);
-            model.add(dataSource, lastUpdate, timestampStr, XSDDatatype.XSDdateTime);
-        }
-        
-    }
     
     private class DataSourceRunner implements Runnable {
 
         private String dataSourceURI;
-        private DataSourceTimestamper timestamper;
         private DataTask task;
         private Thread thread;
         
-        public DataSourceRunner(String dataSourceURI, DataSourceTimestamper timestamper) {
+        public DataSourceRunner(String dataSourceURI) {
             this.dataSourceURI = dataSourceURI;
-            this.timestamper = timestamper;
         }
         
         @Override
@@ -281,13 +260,16 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             runnings.addRunning(dataSourceURI, this);
             
             task = loadTask(dataSourceURI);
-            timestamper.timestampLastUpdate(dataSourceURI);
             
             task.getStatus().setStatusOk(true);
             task.getStatus().setMessage(null);
+            dataTaskDao.saveProgress(dataSourceURI, 0);
+            
+            if (!task.indexingEnabled()) {
+                DeveloperDisabledChangeListener.setEnabled(false);
+            }
             
             long resultNum = 0;
-            boolean taskOK = true;
             
             try {
                 resultNum = task.run(DataSourceScheduler.this.dataTaskDao);
@@ -295,16 +277,17 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             } catch (Exception e1) {
                 log.error("Running of service failed: " + dataSourceURI, e1);
                 task.getStatus().setStatusOk(false);
-                task.getStatus().setMessage(e1.getMessage());
-                taskOK = false;
+                task.getStatus().setMessage(null != e1.getMessage() ? e1.getMessage() : e1.toString());
             }
             
             task.getStatus().setTotalRecords(resultNum);
             dataTaskDao.saveTaskStatus(task.getStatus(), dataSourceURI);
             
+            DeveloperDisabledChangeListener.setEnabled(true);
+            
             schedule(task);
             
-            if (taskOK) {
+            if (task.getStatus().isStatusOk()) {
                 for(DataTask nextTask : dataTaskDao.listIngestTasks()) {
                     if(dataSourceURI.equals(nextTask.getScheduleAfterURI())) {
                         log.info("Starting service " + nextTask.getURI() + " scheduled as run after: " + dataSourceURI);
@@ -386,8 +369,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
                     ) {
                 if(stmt.getSubject().isURIResource()) {
                     log.debug("Scheduling based on heard change");
-                    schedule(dataTaskDao.getDataSource(
-                            stmt.getSubject().asResource().getURI()));   
+                    schedule(dataTaskDao.getDataSource(stmt.getSubject().asResource().getURI()));   
                 }                
             }
         }

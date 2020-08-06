@@ -1,35 +1,37 @@
 package org.vivoweb.adminapp.datasource.merge;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
-import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.OWL;
-import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
@@ -37,115 +39,109 @@ import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
  * Implementation of the data merge task.
+ * 
  * @author Stefan.Wolff@slub-dresden.de
  *
  */
 public class DataMerge extends DataTask {
 
-
     private static final Log log = LogFactory.getLog(DataMerge.class);
-    
-    // default size of window of adjacent values for fuzzy string comparisons
-    private static final int DEFAULT_WINDOW_SIZE = 100;     
-    private static final String VIVO = "http://vivoweb.org/ontology/core#";
-    private static final String RELATIONSHIP = VIVO + "Relationship";
-    private static final String ROLE = "http://purl.obolibrary.org/obo/BFO_0000023";
-    private static final String PROCESS = "http://purl.obolibrary.org/obo/BFO_0000015";
-    private static final String REALIZED_IN = "http://purl.obolibrary.org/obo/BFO_0000054";
-    private static final String INHERES_IN = "http://purl.obolibrary.org/obo/RO_0000052";    
-    private static final String APPLICATION_CONTEXT_NS = "http://vitro.mannlib.cornell.edu/ns/vitro/ApplicationConfiguration#";
-    private static final String CONFIG_CONTEXT_FOR = APPLICATION_CONTEXT_NS + "configContextFor"; 
-    private static final String QUALIFIED_BY = APPLICATION_CONTEXT_NS + "qualifiedBy";            
+
     private static final String MERGERULE = DataTaskDao.ADMIN_APP_TBOX + "MergeRule";
     private static final String DISABLED = DataTaskDao.ADMIN_APP_TBOX + "disabled";
     private static final String MERGERULEATOM = DataTaskDao.ADMIN_APP_TBOX + "MergeRuleAtom";
+    private static final String LINKEDMERGERULE = DataTaskDao.ADMIN_APP_TBOX + "LinkedMergeRule";
     private static final String HASMERGERULE = DataTaskDao.ADMIN_APP_TBOX + "hasMergeRule";
     private static final String MERGERULECLASS = DataTaskDao.ADMIN_APP_TBOX + "mergeRuleClass";
     private static final String PRIORITY = DataTaskDao.ADMIN_APP_TBOX + "priority";
     private static final String HASATOM = DataTaskDao.ADMIN_APP_TBOX + "hasAtom";
+    private static final String HASLINKEDMERGERULE = DataTaskDao.ADMIN_APP_TBOX + "hasLinkedMergeRule";
+    private static final String LINKEDBYOBJECTPROPERTY = DataTaskDao.ADMIN_APP_TBOX + "linkedByObjectProperty";
     private static final String MATCHDEGREE = DataTaskDao.ADMIN_APP_TBOX + "matchDegree";
+    private static final String NUMBERPUBLICATIONS = DataTaskDao.ADMIN_APP_TBOX + "numberPublications";
+    private static final String NUMBERPERSONS = DataTaskDao.ADMIN_APP_TBOX + "numberPersons";
     private static final String MERGEATOMDATAPROPERTY = DataTaskDao.ADMIN_APP_TBOX + "mergeAtomDataProperty";
     private static final String MERGEATOMOBJECTPROPERTY = DataTaskDao.ADMIN_APP_TBOX + "mergeAtomObjectProperty";
-    private static final String HASCONTACTINFO = "http://purl.obolibrary.org/obo/ARG_2000028";
-    private static final String VCARD = "http://www.w3.org/2006/vcard/ns#";
-    private static final String FOAF_PERSON = "http://xmlns.com/foaf/0.1/Person";
-    private static final String FOAF_ORGANIZATION = "http://xmlns.com/foaf/0.1/Organization";
-    private static final String BIBO_COLLECTION = "http://purl.org/ontology/bibo/Collection";
-    private static final String BIBO_DOCUMENT = "http://purl.org/ontology/bibo/Document";
+    private static final String NAMEVARIANTS = DataTaskDao.ADMIN_APP_TBOX + "nameVariants";
+    private static final String TEXTMERGEATOM = DataTaskDao.ADMIN_APP_TBOX + "TextMergeAtom";
+    private static final String AUTHORGROUPMERGEATOM = DataTaskDao.ADMIN_APP_TBOX + "AuthorGroupMergeAtom";
+    private static final String OBJECTPROPERTYMERGEATOM = DataTaskDao.ADMIN_APP_TBOX + "ObjectPropertyMergeAtom";
+
     private static final String BASIC_SAMEAS_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/basicSameAs";
-        
-    
-    protected LevenshteinDistance ld = LevenshteinDistance.getDefaultInstance();
-    
-    
+    private static final String MATCHVALUE_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/basicMatchValue";
+
     public DataMerge(String taskUri) {
         super(taskUri);
     }
-    
+
+    @Override
+    public boolean indexingEnabled() {
+        return false;
+    }
     
     @Override
     public long run(DataTaskDao dataTaskDao) throws IOException {
         log.info("Starting merge " + getURI());
-        
+
         SparqlEndpoint endpoint = new SparqlEndpoint(this.getEndpointParams());
         Model rulesModel = retrieveMergeRulesFromEndpoint(endpoint);
         Model differentFromModel = getDifferentFromModel(endpoint);
-        Model fauxPropertyContextModel = getFauxPropertyContextModel(endpoint);
-        
+
         log.info("adding basic sameAs assertions");
         addBasicSameAsAssertions(endpoint);
         
+        log.info("clean up old prepared data structure");
+        endpoint.clear(MATCHVALUE_GRAPH);
+        
         log.info("Clearing previous merge state");
         List<MergeRule> mergeRules = new ArrayList<MergeRule>();
-        for(String mergeRuleURI : getMergeRuleURIs(getURI(), endpoint)) {
-            endpoint.clear(mergeRuleURI); 
-            mergeRules.add(getMergeRule(mergeRuleURI, rulesModel));
-        }
-        
-        log.info("running merge rules");
-        Collections.sort(mergeRules, new AffectedClassRuleComparator(endpoint));
-        Map<String, Long> statistics = new HashMap<String, Long>();
-        
-        // TODO: solange wie nötig laufen lassen oder bis konfiguriertes Maximum erreicht ist
-        for(int i = 0; i < 2; i++) {
-            for(MergeRule rule : mergeRules) {
-                String mergeRuleURI = rule.getURI();
-                log.info("Processing rule " + mergeRuleURI);                         
-                Model ruleResult = getSameAs(rule, fauxPropertyContextModel, endpoint, DEFAULT_WINDOW_SIZE);
-                if(isSuspicious(ruleResult)) {
-                    log.warn(mergeRuleURI + " produced a suspiciously large number (" + ruleResult.size() + ") of triples.");
-                }
-                filterObviousResults(ruleResult);
-                filterKnownDifferentFrom(ruleResult, differentFromModel);
-
-                Long stat = statistics.get(mergeRuleURI);
-                if(stat == null) {
-                    statistics.put(mergeRuleURI, ruleResult.size());    
-                } else {
-                    statistics.put(mergeRuleURI, stat + ruleResult.size());
-                }
-                
-                log.info("Rule results size: " + ruleResult.size());            
-                endpoint.writeModel(ruleResult, mergeRuleURI); 
+        for (Resource mergeRule : getMergeRuleURIs(getURI(), endpoint)) {
+            endpoint.clear(mergeRule.getURI());
+            try {
+                mergeRules.add(getMergeRule(mergeRule.getURI(), rulesModel));
+            } catch(Exception e) {
+                log.warn("Loading of merge rule failed!", e);
             }
         }
-        
-        String resultsGraphURI = this.getResultsGraphURI();
-        endpoint.clear(resultsGraphURI); 
-        
-        log.info("Merging relationships");
-        Model tmp = getRelationshipSameAs(endpoint);
-        log.info(tmp.size() + " sameAs from merged relationships");
-        endpoint.writeModel(tmp, resultsGraphURI);
 
-        tmp = getRoleSameAs(endpoint);
-        log.info(tmp.size() + " sameAs from merged roles");
-        endpoint.writeModel(tmp, resultsGraphURI);
-        
-        
+        log.info("running merge rules");
+        Map<String, Long> statistics = new HashMap<String, Long>();
+
+        // TODO: more then one iteration necessary?
+        int ruleNum = mergeRules.size();
+        int i = 0;
+        for (MergeRule rule : mergeRules) {
+            String mergeRuleURI = rule.getURI();
+            log.info("Processing rule " + mergeRuleURI);
+            
+            log.info("Prepare data structure ..");
+            prepareDataStructure(rule, endpoint);
+            log.info(".. data structure prepared");
+            
+            Model ruleResult = getSameAs(rule, endpoint);
+            if (isSuspicious(ruleResult)) {
+                log.warn(mergeRuleURI + " produced a suspiciously large number (" + ruleResult.size() + ") of triples.");
+            }
+
+            filterObviousResults(ruleResult);
+            filterKnownDifferentFrom(ruleResult, differentFromModel);
+            
+            Long stat = statistics.get(mergeRuleURI);
+            if (stat == null) {
+                statistics.put(mergeRuleURI, ruleResult.size());
+            } else {
+                statistics.put(mergeRuleURI, stat + ruleResult.size());
+            }
+
+            log.info("Rule results size: " + ruleResult.size());
+            endpoint.writeModel(ruleResult, mergeRuleURI);
+            
+            dataTaskDao.saveProgress(getURI(), 100 * i++ / ruleNum);
+        }
+
         log.info("======== Final Results ========");
         int result = 0;
-        for(String ruleURI : statistics.keySet()) {
+        for (String ruleURI : statistics.keySet()) {
             result += statistics.get(ruleURI);
             dataTaskDao.saveResultNum(ruleURI, statistics.get(ruleURI));
             log.info("Rule " + ruleURI + " added " + statistics.get(ruleURI));
@@ -153,49 +149,125 @@ public class DataMerge extends DataTask {
         
         return result;
     }
+
     
-    private Model getFauxPropertyContextModel(SparqlEndpoint endpoint) {
-        return endpoint.construct("DESCRIBE ?x WHERE { \n" 
-                + "    ?x a <" + APPLICATION_CONTEXT_NS + "ConfigContext> \n"  
-                + "} \n");
+    private void prepareDataStructure(MergeRule rule, SparqlEndpoint endpoint) {
+        NameVariantBuilder nameVariant = new NameVariantBuilder();
+        
+        for (MergeRuleAtom atom : rule.getAtoms()) {
+            if (atom instanceof TextMergeAtom) {
+                TextMergeAtom textMergeAtom = (TextMergeAtom) atom;
+                if (!textMergeAtom.nameVariants() && 100 == textMergeAtom.getMatchDegree()) {
+                    continue;
+                }
+                
+                StringBuilder query = new StringBuilder();
+                query.append("CONSTRUCT { ?x <").append(textMergeAtom.getMergeDataPropertyURI()).append("> ?y } WHERE { \n")
+                     .append("  ?x a <").append(rule.getMergeClassURI()).append("> . \n")
+                     .append("  ?x <").append(textMergeAtom.getMergeDataPropertyURI()).append("> ?y . \n")
+                     .append("} \n");
+                
+                String queryString = query.toString();
+                log.info("Preparation query: " + queryString);
+                
+                Model source = endpoint.construct(queryString);
+                Model target = ModelFactory.createDefaultModel();
+                
+                StmtIterator stmtIt = source.listStatements();
+                long stmtCount = 0;
+                while (stmtIt.hasNext()) {
+                    Statement stmt = stmtIt.next();
+                    String objValue = stmt.getString();
+                    objValue = objValue.toLowerCase().trim();
+                 
+                    if (textMergeAtom.nameVariants()) {
+                        objValue = nameVariant.build(objValue);
+                    }
+
+                    List<String> values = createMatchValues(objValue, textMergeAtom.getMatchDegree());
+                    for (String value : values) {
+                        target.add(stmt.getSubject(), stmt.getPredicate(), value);
+                        
+                        if (0 == (SparqlEndpoint.CHUNK_SIZE % ++stmtCount)) {
+                            endpoint.writeModel(target, MATCHVALUE_GRAPH);
+                            target.removeAll();
+                        }
+                    }
+                }
+                
+                if (0 != target.size()) {
+                    endpoint.writeModel(target, MATCHVALUE_GRAPH);
+                }
+            }
+        }
+        
+        
+        for (MergeRule linkedRule : rule.getLinkedRules().values()) {
+            prepareDataStructure(linkedRule, endpoint);
+        }
     }
+    
+    private List<String> createMatchValues(String value, int degree) {
+        List<String> result = new LinkedList<>();
+        result.add(value);
+        int valueLength = value.length();
+        int stepSize = valueLength < 100 ? 100 / valueLength : 1;
+        
+        int current = 100 - stepSize;
+        int lastCharNum = 0;
+        while (degree < current) {
+            int charNum = current * valueLength / 100;
+            
+            if (charNum != lastCharNum) {
+                for (int i=0; i+charNum <= valueLength; i++) {
+                    result.add(value.substring(i, charNum + i));
+                }
+                lastCharNum = charNum;
+            }
+            
+            current -= stepSize;
+        }
+        
+        return result;
+    }
+    
     
     /**
      * Materialize inferences of type sameAs(x,x) for query support
+     * 
+     * @throws IOException
      */
-    protected void addBasicSameAsAssertions(SparqlEndpoint endpoint) {
-        log.info("Clearing " + BASIC_SAMEAS_GRAPH);
+    private void addBasicSameAsAssertions(SparqlEndpoint endpoint) throws IOException {
         endpoint.clear(BASIC_SAMEAS_GRAPH);
         String queryStr = "CONSTRUCT { ?x <" + OWL.sameAs.getURI() + "> ?x } WHERE { \n" +
-                "    ?x a ?thing \n" +
-                "} \n";
+                          "    ?x a ?thing \n"
+                          + "} \n";
         Model m = endpoint.construct(queryStr);
         log.info("Writing " + m.size() + " triples to " + BASIC_SAMEAS_GRAPH);
-        endpoint.writeModel(m, BASIC_SAMEAS_GRAPH);        
+        endpoint.writeModel(m, BASIC_SAMEAS_GRAPH);
     }
-    
+
     /**
      * Check if a result model is likely to contain an unwanted Cartesian product
-     * @param m 
-     * @return true if the number of triples in the model is greater than
-     * one half the square of the number of distinct URIs
+     * 
+     * @param m
+     * @return true if the number of triples in the model is greater than one half
+     *         the square of the number of distinct URIs
      */
-    protected boolean isSuspicious(Model m) {
-        if(m.size() < 128) {
+    private boolean isSuspicious(Model m) {
+        if (m.size() < 128) {
             return false;
         }
-        String distinctURIs = "SELECT (COUNT(DISTINCT ?x) AS ?count) WHERE { \n" +
-                "    { ?x ?p ?o } UNION { ?s ?p ?x } \n" +
-                "} \n";
+        String distinctURIs = "SELECT (COUNT(DISTINCT ?x) AS ?count) WHERE { \n"
+                + "    { ?x ?p ?o } UNION { ?s ?p ?x } \n" + "} \n";
         QueryExecution qe = QueryExecutionFactory.create(distinctURIs, m);
         try {
             ResultSet rs = qe.execSelect();
-            while(rs.hasNext()) {
+            while (rs.hasNext()) {
                 QuerySolution qsoln = rs.next();
                 RDFNode node = qsoln.get("count");
-                if(node.isLiteral()) {
-                    int distinctURICount = Integer.parseInt(
-                            node.asLiteral().getLexicalForm(), 10);
+                if (node.isLiteral()) {
+                    int distinctURICount = Integer.parseInt(node.asLiteral().getLexicalForm(), 10);
                     boolean suspicious = m.size() >= ((distinctURICount * distinctURICount) / 2);
                     log.info("Distinct URIs: " + distinctURICount + "; result size: " + m.size());
                     log.info(suspicious ? "suspicious!" : "not suspicious");
@@ -207,486 +279,348 @@ public class DataMerge extends DataTask {
             qe.close();
         }
     }
-    
+
     /**
      * Remove each statement of the type owl:sameAs(x,y) from model m where
      * differentFromModel contains a statement owl:differentFrom(x,y).
-     * @param m the model containing sameAs statements to be filtered
+     * 
+     * @param m                  the model containing sameAs statements to be
+     *                           filtered
      * @param differentFromModel the model containing differentFrom statements
      */
     private void filterKnownDifferentFrom(Model m, Model differentFromModel) {
-        if(differentFromModel == null || differentFromModel.isEmpty()) {
+        if (differentFromModel == null || differentFromModel.isEmpty()) {
             return;
         }
         Model delete = ModelFactory.createDefaultModel();
         StmtIterator sit = m.listStatements(null, OWL.sameAs, (Resource) null);
-        while(sit.hasNext()) {
+        while (sit.hasNext()) {
             Statement stmt = sit.next();
-            if(differentFromModel.contains(
-                    stmt.getSubject(), OWL.differentFrom, stmt.getObject())) {
+            if (differentFromModel.contains(stmt.getSubject(), OWL.differentFrom, stmt.getObject())) {
                 delete.add(stmt);
             }
         }
         m.remove(delete);
     }
-    
+
     private void filterObviousResults(Model m) {
         Model delete = ModelFactory.createDefaultModel();
-        
+
         for (Statement stmt : m.listStatements().toList()) {
-            if(stmt.getObject().isURIResource() 
+            if (stmt.getObject().isURIResource()
                     && stmt.getObject().asResource().getURI().equals(stmt.getSubject().getURI())) {
                 delete.add(stmt);
             }
         }
-        
+
         m.remove(delete);
     }
+
+    private Model getSameAs(MergeRule rule, SparqlEndpoint endpoint)  throws IOException {
+        SameAsQueryBuilder queryBuilder = new SameAsQueryBuilder();
+        
+        putSameAsQuery(rule, queryBuilder, null);
+        
+        String query = queryBuilder.build();
+        log.info("Generated sameAs query: \n" + query);
+        
+        return endpoint.construct(query);
+    }
     
-    private Model getSameAs(MergeRule rule, Model fauxPropertyContextModel, SparqlEndpoint endpoint, int windowSize) {
-        Model sameAsModel = null;
+    private void putSameAsQuery(MergeRule rule, SameAsQueryBuilder queryBuilder, String linkedObjURI)  throws IOException {
+        queryBuilder.addRule(rule, linkedObjURI);
+
+        for (Entry<String, MergeRule> linkedRule : rule.getLinkedRules().entrySet()) {
+            log.info("Processing linked rule: " + linkedRule.getValue().getURI());
+            
+            putSameAsQuery(linkedRule.getValue(), queryBuilder, linkedRule.getKey());
+        }
+
+    }
+    
+    /**
+     * Caution: If changing this function (or deeper), then {@link #getLinkedRuleOuterFilter(MergeRule, String, int)} may also have to be changed!
+     */
+    private String getAllAtomQueries(MergeRule rule) throws IOException {
+        StringBuilder atomQueries = new StringBuilder();
+        
+        atomQueries.append("    ?x a <").append(rule.getMergeClassURI()).append("> . \n");
+        atomQueries.append("    ?y a <").append(rule.getMergeClassURI()).append("> . \n");
+                
         for (MergeRuleAtom atom : rule.getAtoms()) {
-            log.debug("Processing atom " + atom.getMergeDataPropertyURI() + " ; " 
-                    + atom.getMergeObjectPropertyURI() + " ; " 
-                    + atom.getMatchDegree());
-            if(atom.getMatchDegree() < 100) {
-                sameAsModel = join(sameAsModel, getFuzzySameAs(
-                        rule, atom, fauxPropertyContextModel, windowSize, endpoint));
-                sameAsModel = supplementFuzzySameAs(sameAsModel, endpoint);
+            log.info("Processing merge rule pattern " + atom.getURI());
+          
+            if (atom instanceof ObjectPropertyMergeAtom) {
+                putObjectPropertySameAs((ObjectPropertyMergeAtom) atom, atomQueries);
+
+            } else if (atom instanceof AuthorGroupMergeAtom) {
+                putAuthorGroupSameAs((AuthorGroupMergeAtom) atom, rule.getMergeClassURI(), atomQueries);
+
+            } else if (atom instanceof TextMergeAtom) {
+                putDataPropertySameAs((TextMergeAtom) atom, atomQueries);
+                
             } else {
-                String queryStr = null;
-                if (atom.getMergeObjectPropertyURI() != null) {
-                    queryStr = getObjectPropertySameAs(
-                            rule, atom, fauxPropertyContextModel, endpoint);                
-                } else if(atom.getMergeDataPropertyURI() != null) {
-                    log.info("data property: " + atom.getMergeDataPropertyURI());
-                    if(atom.getMergeDataPropertyURI().startsWith(VCARD) 
-                            && atom.getMergeDataPropertyURI().endsWith("Name")) {
-                        queryStr = getVcardNameSameAs(rule, atom);                    
-                    } else {
-                        queryStr = getDataPropertySameAs(rule, atom);    
-                    }
-                } 
-                if(queryStr == null) {
-                    log.info("Incomplete atoms; no query string generated."); 
-                    continue;
+                throw new IllegalStateException("Merge rule patern type not implemented: " + atom.getClass());
+            }
+            
+        }
+        
+        return atomQueries.toString();
+    }
+
+
+    private void putObjectPropertySameAs(ObjectPropertyMergeAtom atom, StringBuilder result) throws IOException {
+        String varNameX = buildVarNameFromURI(atom.getMergeObjectPropertyURI());
+        String varNameY = varNameX + "Y";
+        
+        result.append("    ?x <").append(atom.getMergeObjectPropertyURI()).append("> ?").append(varNameX).append(" . \n")
+              .append("    ?y <").append(atom.getMergeObjectPropertyURI()).append("> ?").append(varNameY).append(" . \n") 
+              .append("    ?").append(varNameX).append(" <").append(OWL.sameAs.getURI()).append("> ?").append(varNameY).append(" . \n");
+    }
+
+    
+    private void putDataPropertySameAs(TextMergeAtom atom, StringBuilder result) {
+        String varName = buildVarNameFromURI(atom.getMergeDataPropertyURI());
+        
+        result.append("    ?x <").append(atom.getMergeDataPropertyURI()).append("> ?").append(varName).append(" . \n")
+              .append("    ?y <").append(atom.getMergeDataPropertyURI()).append("> ?").append(varName).append(" . \n");
+    }
+    
+    private void putAuthorGroupSameAs(AuthorGroupMergeAtom atom, String mergeClassRuleURI, StringBuilder result) {
+        for (int i=0; i<atom.getNumPublications(); i++) {
+            result.append("    ?doc_").append(i).append(" a <http://purl.org/ontology/bibo/Document> . \n");
+            
+            for (int j=0; j<atom.getNumPersons(); j++) {
+                String authorshipVar = "as_" + i + "_" + j;
+                String personVar;
+                String personNameVar = "name_" + i + "_" + j; 
+                
+                if (0 == i && 0 == j) {
+                    personVar = "x";
+                } else if (1 == i && 0 == j) {
+                    personVar = "y";
                 } else {
-                    queryStr = "CONSTRUCT { \n " +
-                            "    ?x <" + OWL.sameAs.getURI() + "> ?y . \n" +
-                            "    ?y <" + OWL.sameAs.getURI() + "> ?x  \n" +
-                            "} WHERE { \n"
-//                            + "  FILTER NOT EXISTS { ?x <" + OWL.sameAs + "> ?y } \n" 
-                            + queryStr +
-//                            "    ?x <" + OWL.sameAs.getURI() + "> ?x1 . \n" +
-//                            "    ?y <" + OWL.sameAs.getURI() + "> ?y1 . \n" +
-                            "    FILTER NOT EXISTS { ?x <" + OWL.sameAs.getURI() + "> ?y } \n" +
-                            "    FILTER NOT EXISTS { ?y <" + OWL.sameAs.getURI() + "> ?x } \n" +
-                            "    FILTER NOT EXISTS { ?x <" + OWL.differentFrom.getURI() + "> ?y } \n" +
-                            "    FILTER NOT EXISTS { ?y <" + OWL.differentFrom.getURI() + "> ?x } \n" +
-                            "} \n";
-                    log.info("Generated sameAs query: \n" + queryStr);                    
-                    sameAsModel = join(sameAsModel, endpoint.construct(
-                            queryStr));
+                    personVar = "p_" + i + "_" + j;
+                }
+                
+                result.append("    ?doc_").append(i).append(" <http://vivoweb.org/ontology/core#relatedBy> ?").append(authorshipVar).append(" . \n");
+                result.append("    ?").append(authorshipVar).append(" a <http://vivoweb.org/ontology/core#Authorship> . \n");
+                result.append("    ?").append(authorshipVar).append(" <http://vivoweb.org/ontology/core#relates> ?").append(personVar).append(" . \n");
+                result.append("    ?").append(personVar).append(" a <").append(mergeClassRuleURI).append("> . \n");
+                result.append("    ?").append(personVar).append(" <http://www.w3.org/2000/01/rdf-schema#label> ?").append(personNameVar).append(" . \n");
+            
+                if (i+1 < atom.getNumPublications()) {
+                    String name2 = "name_" + (i+1) + "_" + j;
+                    
+                    result.append("    FILTER(").append(personNameVar).append(" = ").append(name2).append(") \n");
+                }
+                
+                for (int k=j+1; k<atom.getNumPersons(); k++) {
+                    result.append("FILTER ( ?").append(personNameVar).append(" != ?name_").append(i).append("_").append(k).append(" ) . \n");
+                }
+                
+            }
+            
+            for (int j=0; j<atom.getNumPublications(); j++) {
+                if (i != j) {
+                    result.append("FILTER NOT EXISTS { ?doc_").append(i).append(" <http://www.w3.org/2002/07/owl#sameAs> ?doc_").append(j).append(" } \n");
                 }
             }
-        }         
-        return sameAsModel;
-    } 
-    
-    private Model join(Model sameAsModel, Model atomModel) {
-        if(sameAsModel == null) {
-            return atomModel;
-        } else {
-            Model intersection = sameAsModel.intersection(atomModel);
-            log.info("Intersection=" + intersection.size() + "; previous=" 
-                    + sameAsModel.size() + "; atom=" + atomModel.size());
-            return intersection;
+
         }
+        
     }
+    
+    private String buildVarNameFromURI(String uri) {
+        String[] parts = uri.split("//");
+        
+        if (1 > parts.length) {
+            throw new IllegalArgumentException("Invalid URI format: " + uri);
+        }
+        
+        return parts[1].replaceAll("[/_#-\\.]", "_");
+    }
+
     
     /**
-     * Add additional sameAs matches (based on existing sameAs statements)
-     * as if we had a reasoned model
+     * Builds the filter to ensure, ALL entries are found in potential duplicate.
+     * 
+     * Example: Its not enough, to find a same author in two publications entries.
+     *          It is also necessary to ensure, that there are no authors in one of the potential publication duplicate,
+     *          which are not mentioned in the other potential publication duplicate.
      */
-    private Model supplementFuzzySameAs(Model m, SparqlEndpoint endpoint) {
-        String inverse = "CONSTRUCT { ?y <" + OWL.sameAs.getURI() + "> ?x }" +
-                " WHERE { ?x <" + OWL.sameAs.getURI() + "> ?y }";
-        QueryExecution qe = QueryExecutionFactory.create(inverse, m);
-        try {
-            m.add(qe.execConstruct());
-        } finally {
-            qe.close();
-        }
-        Model supplement = ModelFactory.createDefaultModel();
-        ResIterator rit = m.listSubjects();
-        while(rit.hasNext()) {
-            Resource r = rit.next();
-            supplement.add(getSupplement(r, m, endpoint));
-        }
-        m.add(supplement);
-        return m;
-    }
-    
-    private Model getSupplement(Resource r, Model m, SparqlEndpoint endpoint) {
-        Model supplement = ModelFactory.createDefaultModel();
-        List<Resource> peers = new ArrayList<Resource>();
-        ResultSet resultSet = endpoint.getResultSet(
-                "SELECT ?y WHERE { <" + r.getURI() + ">" + 
-                " <" + OWL.sameAs.getURI() + "> ?y }");
-        while(resultSet.hasNext()) {
-            QuerySolution qsoln = resultSet.next();
-            RDFNode node = qsoln.get("y");
-            if(!node.isURIResource()) {
-                continue;
-            }
-            peers.add(node.asResource());
-        }
-        StmtIterator sit = m.listStatements(r, null, (RDFNode) null);
-        while(sit.hasNext()) {
-            Statement stmt = sit.next();
-            for(Resource peer : peers) {
-                supplement.add(peer, stmt.getPredicate(), stmt.getObject());
-            }
-        }
-        return supplement;
-    }
-          
-    private String getVcardNameSameAs(MergeRule rule, MergeRuleAtom atom) {
-        return  "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + HASCONTACTINFO + "> ?vcard . \n" +
-                "    ?vcard <" + VCARD + "hasName> ?name . \n" +
-                "    ?name <" + atom.getMergeDataPropertyURI() + "> ?value . \n" +
-                "    ?y <" + HASCONTACTINFO + "> ?vcard . \n" +
-                "    ?vcard <" + VCARD + "hasName> ?name . \n" +
-                "    ?name <" + atom.getMergeDataPropertyURI() + "> ?value . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n";
-    }
-    
-    private String getSingleEndedVcardNameQuery(MergeRule rule, MergeRuleAtom atom) {
-        String queryStr = "SELECT ?x ?value WHERE { \n" +
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + HASCONTACTINFO + "> ?vcard . \n" +
-                "    ?vcard <" + VCARD + "hasName> ?name . \n";
-        if((VCARD + "givenName").equals(atom.getMergeDataPropertyURI())) {
-            queryStr +=        
-                    "    ?name <" + VCARD + "familyName> ?familyNameValue . \n" +
-                    "    ?name <" + atom.getMergeDataPropertyURI() + "> ?value . \n" +
-                    "} ORDER BY ?familyNameValue ?value \n" ;
-        } else {
-            queryStr +=        
-                "    ?name <" + atom.getMergeDataPropertyURI() + "> ?value . \n" +
-                "} ORDER BY ?familyNameValue ?value \n" ;
-        }
-        return queryStr;
-    }
-    
-    private String getDataPropertySameAs(MergeRule rule, MergeRuleAtom atom) {
-        return  "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + atom.getMergeDataPropertyURI() + "> ?value . \n" +
-                "    ?y <" + atom.getMergeDataPropertyURI() + "> ?value . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n";
-    }
+    private String getLinkedRuleOuterFilter(MergeRule rule, String linkedObjURI) {
+        StringBuilder result = new StringBuilder();
+        StringBuilder innerFilter = new StringBuilder();
         
-    private String getObjectPropertySameAs(MergeRule rule, MergeRuleAtom atom, 
-            Model fauxPropertyContextModel, SparqlEndpoint sparqlEndpoint) {
-        if(isFauxPropertyContext(atom.getMergeObjectPropertyURI(), 
-                fauxPropertyContextModel)) {
-            FauxPropertyContext ctx = getFauxPropertyContext(
-                    atom.getMergeObjectPropertyURI(), fauxPropertyContextModel);
-            if(ctx == null) {
-                return null;
+        result.append("    FILTER NOT EXISTS { \n")
+              .append("        ?x <").append(linkedObjURI).append("> ?otherX . \n")
+              .append("        ?otherX a <").append(rule.getMergeClassURI()).append("> . \n");
+        
+        for (MergeRuleAtom atom : rule.getAtoms()) {
+            
+            if (atom instanceof ObjectPropertyMergeAtom) {
+                ObjectPropertyMergeAtom opAtom = (ObjectPropertyMergeAtom) atom;
+                String varName = "other" + buildVarNameFromURI(opAtom.getMergeObjectPropertyURI());
+                String varNameY = varName + "Y";
+                
+                result.append("    ?otherX <").append(opAtom.getMergeObjectPropertyURI()).append("> ?").append(varName).append(" . \n");
+                innerFilter.append("    ?otherY <").append(opAtom.getMergeObjectPropertyURI()).append("> ?").append(varNameY).append(" . \n")
+                           .append("    ?").append(varName).append(" <").append(OWL.sameAs.getURI()).append("> ?").append(varNameY).append(" . \n");
+                
+            } else if (atom instanceof TextMergeAtom) {
+                TextMergeAtom agAtom = (TextMergeAtom) atom;
+                String varName = "other" + buildVarNameFromURI(agAtom.getMergeDataPropertyURI());
+                    
+                result.append("        ?otherX <").append(agAtom.getMergeDataPropertyURI()).append("> ?").append(varName).append(" . \n");
+                innerFilter.append("        ?otherY <").append(agAtom.getMergeDataPropertyURI()).append("> ?").append(varName).append(" . \n");
+                
+            } else if (atom instanceof AuthorGroupMergeAtom) {
+                   // no outer filter needed for this pattern
+                
             } else {
-                return getFauxPropertyPattern(rule, atom, ctx, sparqlEndpoint);    
-            }                    
-        } else {
-            return  "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                    "    ?x <" + atom.getMergeObjectPropertyURI() + "> ?value . \n" +
-                    "    ?value <" + OWL.sameAs.getURI() + "> ?value1 . \n" +
-                    "    ?y <" + atom.getMergeObjectPropertyURI() + "> ?value1 . \n" +
-                    "    ?y a <" + rule.getMergeClassURI()  + "> . \n" ;
+                throw new IllegalStateException("Merge rule patern type not implemented: " + atom.getClass());
+            }
+  
         }
+        
+        result.append("        FILTER NOT EXISTS { \n")
+              .append("            ?y <").append(linkedObjURI).append("> ?otherY . \n")
+              .append("            ?otherY a <").append(rule.getMergeClassURI()).append("> . \n");
+        
+        result.append(innerFilter);
+        
+        
+        return result.toString();
     }
-    
-    protected boolean isSubclass(String classURI, String superclassURI, SparqlEndpoint sparqlEndpoint) {
-        if(classURI == null || superclassURI == null) {
+
+    protected boolean isSubclass(String classURI, String superclassURI, SparqlEndpoint sparqlEndpoint)
+            throws IOException {
+        if (classURI == null || superclassURI == null) {
             return false;
         }
-        if(superclassURI.equals(classURI)) {
+        if (superclassURI.equals(classURI)) {
             return true;
         }
-        Model ask =  sparqlEndpoint.construct(
-                "CONSTRUCT { <" + classURI + "> <" + RDFS.subClassOf + "> <" + superclassURI + "> } WHERE " +
-                        "{ <" + classURI + "> <" + RDFS.subClassOf + "> <" + superclassURI + "> }");
+        Model ask = sparqlEndpoint
+                .construct("CONSTRUCT { <" + classURI + "> <" + RDFS.subClassOf + "> <" + superclassURI + "> } WHERE "
+                        + "{ <" + classURI + "> <" + RDFS.subClassOf + "> <" + superclassURI + "> }");
         return (ask.size() > 0);
     }
-    
-    protected boolean isProcess(String classURI, SparqlEndpoint sparqlEndpoint) {
-        return isSubclass(classURI, PROCESS, sparqlEndpoint);
-    }
-    
-    protected boolean isRole(String classURI, SparqlEndpoint sparqlEndpoint) {
-        return isSubclass(classURI, ROLE, sparqlEndpoint);
-    }
-    
-    protected boolean isRelationship(String classURI, SparqlEndpoint sparqlEndpoint) {
-        return isSubclass(classURI, RELATIONSHIP, sparqlEndpoint);
-    }
-    
-    protected String getFauxPropertyPattern(MergeRule rule, 
-            MergeRuleAtom atom, FauxPropertyContext ctx, 
-            SparqlEndpoint sparqlEndpoint) {
-        if(ctx.getQualifiedBy().startsWith(VCARD)) {
-            String vCardPattern = vCardPattern(rule, ctx);
-            if (vCardPattern != null) {
-                return vCardPattern;
-            }
-        } else if (isRole(ctx.getQualifiedBy(), sparqlEndpoint)) {
-            if(isProcess(rule.getMergeClassURI(), sparqlEndpoint)) {
-                return rolePatternForProcess(rule, atom, ctx);   
-            } else {
-                return rolePattern(rule, atom, ctx);
-            }
-        } else if (isRelationship(ctx.getQualifiedBy(), sparqlEndpoint)) {
-            return relationshipPattern(rule, atom, ctx);
-        } else if ((VIVO + "DateTimeValue").equals(ctx.getQualifiedBy())) {
-            return dateTimeValuePattern(rule, atom, ctx);
-        } else if ((VIVO + "DateTimeInterval").equals(ctx.getQualifiedBy())) {
-            return dateTimeIntervalPattern(rule, atom, ctx);
-        }
-        return standardFauxPropertyPattern(rule, atom, ctx);        
-    }
- 
-    protected String standardFauxPropertyPattern(MergeRule rule, 
-            MergeRuleAtom atom, FauxPropertyContext ctx) {
-        String pattern = //  "{" +
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?value . \n" +
-                "    ?value a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?value <" + OWL.sameAs.getURI() + "> ?value2 . \n" +
-                "    ?y <" + ctx.getPropertyURI() + "> ?value2 . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n" ;  
-        return pattern;
-    }
-    
-    protected String rolePattern(MergeRule rule, MergeRuleAtom atom, 
-            FauxPropertyContext ctx) {
-        String pattern = "    ?role1 <" + REALIZED_IN + "> ?value . \n" +
-                "    ?role2 <" + REALIZED_IN + "> ?value . \n" +
-                "    ?role1 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?role1 . \n" +
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?role2 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?y <" + ctx.getPropertyURI() + "> ?role2 . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n" ;
-        if(atom.getMergeDataPropertyURI() != null) {
-            pattern += "    ?role1 <" + atom.getMergeDataPropertyURI() + "> ?dataPropertyValue . \n" +
-                    "    ?role2 <" + atom.getMergeDataPropertyURI() + "> ?dataPropertyValue . \n";
-        }
-        return pattern;
-    }
-    
-    protected String rolePatternForProcess(MergeRule rule, MergeRuleAtom atom, 
-            FauxPropertyContext ctx) {
-        String pattern = "    ?role1 <" + INHERES_IN + "> ?value . \n" +
-                "    ?role2 <" + INHERES_IN + "> ?value . \n" +
-                "    ?role1 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?role1 . \n" +
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?role2 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?y <" + ctx.getPropertyURI() + "> ?role2 . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n" ;
-        if(atom.getMergeDataPropertyURI() != null) {
-            pattern += "    ?role1 <" + atom.getMergeDataPropertyURI() + "> ?dataPropertyValue . \n" +
-                    "    ?role2 <" + atom.getMergeDataPropertyURI() + "> ?dataPropertyValue . \n";
-        }
-        return pattern;
-    }
-    
-    protected String relationshipPattern(MergeRule rule, MergeRuleAtom atom, 
-            FauxPropertyContext ctx) {
-        String pattern =                     
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?relationship1 . \n" +
-                "    ?relationship1 a <" + ctx.getQualifiedBy() + "> . \n" +                        
-                "    ?relationship1 <" + VIVO + "relates> ?value . \n" +     
-                "    FILTER NOT EXISTS { ?value a <" + rule.getMergeClassURI() + "> } . \n";
-        if(atom.getMergeDataPropertyURI() != null) {
-            pattern += "    ?relationship1 <" + atom.getMergeDataPropertyURI() + "> ?dataPropertyValue . \n";
-        }
-        pattern +=
-                "    ?value <" + OWL.sameAs.getURI() + "> ?value2 . \n" +
-                "    ?relationship2 <" + VIVO + "relates> ?value2 . \n";
-        if(atom.getMergeDataPropertyURI() != null) {
-            pattern += "    ?relationship2 <" + atom.getMergeDataPropertyURI() + "> ?dataPropertyValue . \n";
-        }        
-        pattern +=
-                "    FILTER(?relationship1 != ?relationship2) \n" +
-                "    ?relationship2 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?y <" + ctx.getPropertyURI() + "> ?relationship2 . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n" ;                 
-        return pattern;
-    }
-    
-    protected String dateTimeValuePattern(MergeRule rule, MergeRuleAtom atom, 
-            FauxPropertyContext ctx) {
-        String pattern = 
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?dtv1 . \n" +
-                "    ?dtv1 <" + VIVO + "dateTime> ?dateTime . \n" +
-                "    ?dtv2 <" + VIVO + "dateTime> ?dateTime . \n" +
-                "    ?dtv1 <" + VIVO + "dateTimePrecision> ?dateTimePrecision . \n" +
-                "    ?dtv2 <" + VIVO + "dateTimePrecision> ?dateTimePrecision . \n" +                
-                "    ?y <" + ctx.getPropertyURI() + "> ?dtv2 . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n" +
-                "    ?dtv1 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?dtv2 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    FILTER(?dtv1 != ?dtv2) \n" ;
-        return pattern;
-    }
-    
-    protected String dateTimeIntervalPattern(MergeRule rule, MergeRuleAtom atom, 
-            FauxPropertyContext ctx) {
-        String pattern = 
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?dti1 . \n" +
-                "    ?dti1 <" + VIVO + "start> ?start1 . \n" +
-                "    ?start1 <" + VIVO + "dateTime> ?startDateTime . \n" +
-                "    ?start2 <" + VIVO + "dateTime> ?startDateTime . \n" +
-                "    ?start1 <" + VIVO + "dateTimePrecision> ?startDateTimePrecision . \n" +
-                "    ?start2 <" + VIVO + "dateTimePrecision> ?startTimePrecision . \n" +
-                "    ?dti1 <" + VIVO + "end> ?end1 . \n" +
-                "    ?end1 <" + VIVO + "dateTime> ?endDateTime . \n" +
-                "    ?end2 <" + VIVO + "dateTime> ?endDateTime . \n" +
-                "    ?end1 <" + VIVO + "dateTimePrecision> ?endDateTimePrecision . \n" +
-                "    ?end2 <" + VIVO + "dateTimePrecision> ?endTimePrecision . \n" +
-                "    ?dti2 <" + VIVO + "start> ?start2 . \n" +
-                "    ?dti2 <" + VIVO + "end> ?end2 . \n" +
-                "    ?y <" + ctx.getPropertyURI() + "> ?dti2 . \n" +
-                "    ?y a <" + rule.getMergeClassURI()  + "> . \n" +
-                "    ?dti1 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?dti2 a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    FILTER(?dti1 != ?dti2) \n" ;
-        return pattern;
-    }
-    
-    protected String vCardPattern(MergeRule rule, FauxPropertyContext ctx) {
-        String connectingProperty;
-        String datatypeProperty;
-        if((VCARD + "Telephone").equals(ctx.getQualifiedBy()) 
-                || (VCARD + "Fax").equals(ctx.getQualifiedBy())) {
-            connectingProperty = VCARD + "hasTelephone";
-            datatypeProperty = VCARD + "telephone";
-        } else if ((VCARD + "Work").equals(ctx.getQualifiedBy()) 
-                || (VCARD + "Email").equals(ctx.getQualifiedBy())) {
-            connectingProperty = VCARD + "hasEmail";
-            datatypeProperty = VCARD + "email";
-        } else if ((VCARD + "URL").equals(ctx.getQualifiedBy())) { 
-            connectingProperty = VCARD + "hasURL";
-            datatypeProperty = VCARD + "url";
-        } else {
-            return null;
-        }
-        return  
-                "{" +
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?vcard . \n" +
-                "    ?vcard <" + connectingProperty +"> ?box . \n" +
-                "    ?box a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?box <" + datatypeProperty + "> ?value . \n" +
-                "    ?boxy <" + datatypeProperty + "> ?value . \n" +
-                "    ?boxy a <" +ctx.getQualifiedBy()  + "> . \n" +
-                "    ?vcardy <" + connectingProperty +"> ?boxy . \n" +
-                "    ?y <" + ctx.getPropertyURI() + "> ?vcardy . \n" +
-                "    ?y a <" + rule.getMergeClassURI() + "> . \n" +                
-                "} \n";
-    }
-    
-    protected boolean isFauxPropertyContext(String mergeObjectPropertyURI, 
-            Model fauxPropertyContextModel) {
-        return fauxPropertyContextModel.contains(
-                fauxPropertyContextModel.getResource(mergeObjectPropertyURI), 
-                        RDF.type, fauxPropertyContextModel.getResource(
-                                APPLICATION_CONTEXT_NS + "ConfigContext"));
-    }
-    
-    protected Model retrieveMergeRulesFromEndpoint(SparqlEndpoint endpoint) {
-        String queryStr = "DESCRIBE ?x WHERE { \n" 
-                + "    { ?x a <" + MERGERULE + "> } \n" 
-                + "UNION \n" 
-                + "    { ?x a <" + MERGERULEATOM + "> } \n"
-                + "FILTER NOT EXISTS { ?x <" + DISABLED + "> true } \n"   
-                + "} \n";
+
+
+    protected Model retrieveMergeRulesFromEndpoint(SparqlEndpoint endpoint) throws IOException {
+        String queryStr =   "DESCRIBE ?x WHERE { \n" +
+                            "    { ?x a <" + MERGERULE + "> } \n" +
+                            "UNION \n" +
+                            "    { ?x a <" + MERGERULEATOM + "> } \n" +
+                            "UNION \n" +
+                            "    { ?x a <" + LINKEDMERGERULE + "> } \n" +
+                            "FILTER NOT EXISTS { ?x <" + DISABLED + "> true } \n" + "} \n";
+        
         return endpoint.construct(queryStr);
     }
-    
+
     /**
      * @param endpoint the SPARQL endpoint to query
-     * @return model containing symmetric closure of differentFrom statements
-     *         found in the supplied endpoint
+     * @return model containing symmetric closure of differentFrom statements found
+     *         in the supplied endpoint
      * @return null if endpoint is null
+     * @throws IOException
      */
-    protected Model getDifferentFromModel(SparqlEndpoint endpoint) {
-        if(endpoint == null) {
+    protected Model getDifferentFromModel(SparqlEndpoint endpoint) throws IOException {
+        if (endpoint == null) {
             return null;
         }
-        String queryStr = "CONSTRUCT { ?x <" + OWL.differentFrom.getURI() + "> ?y . \n" 
-                + "    ?y <" + OWL.differentFrom.getURI() + "> ?x . \n" 
-                + "} WHERE { \n" 
-                + "    ?x <" + OWL.differentFrom.getURI() + "> ?y \n" 
-                + "} \n";
+        String queryStr = "CONSTRUCT { ?x <" + OWL.differentFrom.getURI() + "> ?y . \n" + "    ?y <"
+                + OWL.differentFrom.getURI() + "> ?x . \n" + "} WHERE { \n" + "    ?x <" + OWL.differentFrom.getURI()
+                + "> ?y \n" + "} \n";
         return endpoint.construct(queryStr);
     }
-    
-    protected MergeRule getMergeRule(String ruleURI, Model model) {          
-        MergeRule mergeRule = new MergeRule();
-        mergeRule.setURI(ruleURI);
-        Integer priority = getInteger(ruleURI, PRIORITY, model);
-        if(priority == null) {
-            mergeRule.setPriority(0);
-        } else {
-            mergeRule.setPriority(priority);
-        }
+
+    protected MergeRule getMergeRule(String ruleURI, Model model) {
+        MergeRule mergeRule = new MergeRule(ruleURI);
+        Integer priority = getInteger(ruleURI, PRIORITY, model, 0);
+        mergeRule.setPriority(priority);
         mergeRule.setMergeClassURI(getString(ruleURI, MERGERULECLASS, model));
         StmtIterator atomIt = model.listStatements(model.getResource(ruleURI), model.getProperty(HASATOM), (RDFNode) null);
-        while(atomIt.hasNext()) {
-          Statement atomStmt = atomIt.next();
-          if(!atomStmt.getObject().isURIResource()) {
-              continue;
-          } else {
-              mergeRule.addAtom(getAtom(atomStmt.getObject().asResource().getURI(), model));
-          }
-        }        
+        for (Statement atomStmt : atomIt.toList()) {
+            if (atomStmt.getObject().isURIResource()) {
+                mergeRule.addAtom(createAtom(atomStmt.getObject().asResource().getURI(), model));
+            }
+        }
+
+        StmtIterator linkedIt = model.listStatements(model.getResource(ruleURI), model.getProperty(HASLINKEDMERGERULE), (RDFNode) null);
+        for (Statement linkedStmt : linkedIt.toList()) {
+            if (linkedStmt.getObject().isURIResource()) {
+                Resource linkedMergeRule = linkedStmt.getObject().asResource();
+                
+                String linkedObjPropURI = getString(linkedMergeRule, model.getProperty(LINKEDBYOBJECTPROPERTY), model);
+                String linkedRuleURI = getString(linkedMergeRule, model.getProperty(HASMERGERULE), model);
+
+                mergeRule.addLinkedRule(linkedObjPropURI, getMergeRule(linkedRuleURI, model));
+            }
+        }
+
         return mergeRule;
     }
-    
-    protected MergeRuleAtom getAtom(String atomURI, Model model) {
-        MergeRuleAtom atom = new MergeRuleAtom();
-        atom.setURI(atomURI);
-        String dataPropertyURI = getString(atomURI, MERGEATOMDATAPROPERTY, model);
-        if(dataPropertyURI != null) {
-            atom.setMergeDataPropertyURI(dataPropertyURI);
+
+    private MergeRuleAtom createAtom(String atomURI, Model model) {
+        String classURI = getURIValue(atomURI, DataTaskDao.MOSTSPECIFICTYPE, model);
+        MergeRuleAtom result;
+        
+        switch(classURI) {
+            case TEXTMERGEATOM:
+                result = createTextMergeAtom(atomURI, model);
+                break;
+        
+            case AUTHORGROUPMERGEATOM:
+                result = createAuthorGroupAtom(atomURI, model);
+                break;
+                
+            case OBJECTPROPERTYMERGEATOM:
+                result = createObjectPropertyAtom(atomURI, model);
+                break;
+        
+            default: throw new IllegalStateException("Merge rule pattern type not implemented: " + classURI);
+        
         }
-        String objectPropertyURI = getString(atomURI, MERGEATOMOBJECTPROPERTY, model);
-        if(objectPropertyURI != null){
-            atom.setMergeObjectPropertyURI(objectPropertyURI);                
-        }
-        Integer matchDegree = getInteger(atomURI, MATCHDEGREE, model);
-        if(matchDegree == null) {
-            atom.setMatchDegree(100);
-        } else {
-            atom.setMatchDegree(matchDegree);
-        }
-        return atom;
+        
+        return result;
     }
     
+    private TextMergeAtom createTextMergeAtom(String uri, Model model) {
+        return new TextMergeAtom(uri, 
+                                     getString(uri, MERGEATOMDATAPROPERTY, model),
+                                     getInteger(uri, MATCHDEGREE, model, 100),
+                                     getBooleanValue(uri, NAMEVARIANTS, model, false));
+    }
+    
+    private AuthorGroupMergeAtom createAuthorGroupAtom(String uri, Model model) {
+        return new AuthorGroupMergeAtom(uri,
+                                            getString(uri, MERGEATOMDATAPROPERTY, model),
+                                            getInteger(uri, MATCHDEGREE, model, 100),
+                                            getBooleanValue(uri, NAMEVARIANTS, model, false),
+                                            getInteger(uri, NUMBERPUBLICATIONS, model, 0),
+                                            getInteger(uri, NUMBERPERSONS, model, 0));
+    }
+    
+    private ObjectPropertyMergeAtom createObjectPropertyAtom(String uri, Model model) {
+        return new ObjectPropertyMergeAtom(uri, getString(uri, MERGEATOMOBJECTPROPERTY, model));
+    }
+
     private String getString(String subjectURI, String predicateURI, Model model) {
         Resource subject = ResourceFactory.createResource(subjectURI);
         Property predicate = ResourceFactory.createProperty(predicateURI);
+
+        return getString(subject, predicate, model);
+    }
+
+    private String getString(Resource subject, Property predicate, Model model) {
         StmtIterator sit = model.listStatements(subject, predicate, (RDFNode) null);
-        while(sit.hasNext()) {
-            Statement stmt = sit.next();
+        for (Statement stmt : sit.toList()) {
             RDFNode object = stmt.getObject();
-            if(object.isLiteral()) {
+            if (object.isLiteral()) {
                 return object.asLiteral().getLexicalForm();
             } else if (object.isURIResource()) {
                 return object.asResource().getURI();
@@ -694,489 +628,157 @@ public class DataMerge extends DataTask {
         }
         return null;
     }
-    
-    private Integer getInteger(String subjectURI, String predicateURI, Model model) {
-        String object = getString(subjectURI, predicateURI, model);
-        try {
-            return Integer.parseInt(object, 10);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-    
-    protected class MergeRuleAtom {
-        private String URI;
-        private String mergeDataPropertyURI;
-        private String mergeObjectPropertyURI;
-        private int matchDegree;
-        
-        public String getURI() {
-            return this.URI;
-        }
-        public void setURI(String URI) {
-            this.URI = URI;
-        }
-        
-        public String getMergeDataPropertyURI() {
-            return this.mergeDataPropertyURI;
-        }
-        public void setMergeDataPropertyURI(String mergePropertyURI) {
-            this.mergeDataPropertyURI = mergePropertyURI;
-        }
-        
-        public String getMergeObjectPropertyURI() {
-            return this.mergeObjectPropertyURI;
-        }
-        public void setMergeObjectPropertyURI(String mergePropertyURI) {
-            this.mergeObjectPropertyURI = mergePropertyURI;
-        }
-        
-        public int getMatchDegree() {
-            return this.matchDegree;
-        }
-        public void setMatchDegree(int matchDegree) {
-            this.matchDegree = matchDegree;
-        }
-    }
-    
-    protected class MergeRule {
-        
-        private String URI;
-        private String mergeClassURI;
-        private int priority;
-        private List<MergeRuleAtom> atoms = new ArrayList<MergeRuleAtom>();
-        
-        public String getURI() {
-            return this.URI;
-        }
-        public void setURI(String URI) {
-            this.URI = URI;
-        }
-        
-        public String getMergeClassURI() {
-            return this.mergeClassURI;
-        }
-        public void setMergeClassURI(String mergeClassURI) {
-            this.mergeClassURI = mergeClassURI;
-        }
-        
-        public int getPriority() {
-            return this.priority;
-        }
-        public void setPriority(int priority) {
-            this.priority = priority;
-        }
-        
-        public List<MergeRuleAtom> getAtoms() {
-            return this.atoms;
-        }
-        public void addAtom(MergeRuleAtom atom) {
-            this.atoms.add(atom);
-        }
-    }    
-    
-    protected class FauxPropertyContext {
-        
-        private String contextURI;
-        private String propertyURI;
-        private String qualifiedBy;
-       
-        public String getContextURI() {
-            return this.contextURI;
-        }
-        public void setContextURI(String contextURI) {
-            this.contextURI = contextURI;
-        }
-        
-        public String getPropertyURI() {
-            return propertyURI;
-        }
-        public void setPropertyURI(String propertyURI) {
-            this.propertyURI = propertyURI;
-        }
-        
-        public String getQualifiedBy() {
-            return this.qualifiedBy;
-        }
-        public void setQualifiedBy(String qualifiedBy) {
-            this.qualifiedBy = qualifiedBy;
-        }    
-    }
-    
-    protected FauxPropertyContext getFauxPropertyContext(String contextURI, Model contextModel) {
-        FauxPropertyContext context = new FauxPropertyContext();
-        context.setContextURI(contextURI);
-        context.setPropertyURI(getString(contextURI, CONFIG_CONTEXT_FOR, contextModel));
-        context.setQualifiedBy(getString(contextURI, QUALIFIED_BY, contextModel));
-        return context;
-    }
-    
-    private List<String> getMergeRuleURIs(String dataSourceURI, SparqlEndpoint endpoint) {
-        List<String> mergeRuleURIs = new ArrayList<String>();
-        String queryStr = "SELECT ?x WHERE { \n" +
-                 "    <" + dataSourceURI + "> <" + HASMERGERULE + "> ?x \n" +
-                 "    FILTER NOT EXISTS { ?x <" + DISABLED + "> true } \n" + 
-                 "} \n";
-        ResultSet rs = endpoint.getResultSet(queryStr);
-        while(rs.hasNext()) {
-            QuerySolution qsoln = rs.next();
-            RDFNode n = qsoln.get("x");
-            if(n.isURIResource()) {
-                mergeRuleURIs.add(n.asResource().getURI());
+
+    private Integer getInteger(String subjectURI, String predicateURI, Model model, Integer notFound) {
+        StmtIterator sit = model.listStatements(model.getResource(subjectURI), model.getProperty(predicateURI), (RDFNode) null);
+
+        for (Statement stmt : sit.toList()) {
+            if(stmt.getObject().isLiteral()) {
+                Literal lit = stmt.getObject().asLiteral();
+                Object obj = lit.getValue();
+                if (obj instanceof Integer) {
+                    return (Integer) obj;
+                }
             }
         }
-        return mergeRuleURIs;
+        
+        return notFound;
     }
     
-    protected Model getFuzzySameAs(MergeRule rule, MergeRuleAtom atom, Model fauxPropertyContextModel, int windowSize, SparqlEndpoint endpoint) {
-        Model fuzzySameAs = ModelFactory.createDefaultModel();
-        String fuzzyQueryStr = getFuzzyQueryStr(
-                rule, atom, fauxPropertyContextModel);
-        log.info("Processing fuzzy query " + fuzzyQueryStr);
-        ResultSet rs = endpoint.getResultSet(fuzzyQueryStr);
-        log.debug("Processing matches");
-        LinkedList<QuerySolution> window = new LinkedList<QuerySolution>();
-        window = prepopulate(window, rs, windowSize);
-        log.debug("Window prepopulated.");
-        fuzzySameAs.add(getMatches(window, atom.getMatchDegree()));
-        log.debug("Initial window processed");
-        if(!rs.hasNext()) {
-            return fuzzySameAs;
-        }
-        int pos = windowSize / 2;
-        while(rs.hasNext()) {
-            window.add(rs.next()); // add one
-            window.poll(); // drop one
-            fuzzySameAs.add(getMatches(window, atom.getMatchDegree(), pos));
-        }
-        log.debug("Result set processed.");
-        fuzzySameAs.add(getMatches(window, atom.getMatchDegree()));
-        log.debug("Final window processed.");
-        log.debug(fuzzySameAs.size() + " fuzzy sameAs results");
-        return fuzzySameAs;
-    }
-    
-    /**
-     * Get fuzzy string matches formulated as sameAs statements about their
-     * respective individuals.
-     * @param qsoln
-     * @param matchDegree
-     * @param firstInPair - integer position of first individual in comparison
-     */
-    protected Model getMatches(LinkedList<QuerySolution> window, 
-            int matchDegree, Integer firstInPair) {
-        if((firstInPair + 1) > window.size()) {
-            throw new RuntimeException("firstInPair " + firstInPair 
-                    + " out of bounds. Window size is only " + window.size());
-        }
-        Model matches = ModelFactory.createDefaultModel();
-        int i = -1;
-        QuerySolution qsoln1 = window.get(firstInPair);
-        while(i < (window.size() -1)) {
-            i++;
-            log.debug("i=" + i + "; windowSize=" + window.size());
-            if(i == firstInPair) {
-                continue;
-            }
-            QuerySolution qsoln2 = window.get(i);
-            if(matchFuzzily(qsoln1, qsoln2, matchDegree)) {
-                RDFNode node1 = qsoln1.get("x");
-                if(node1.isURIResource()) {
-                    Resource res1 = node1.asResource();
-                    RDFNode node2 = qsoln2.get("x");
-                    if(node2.isURIResource()) {
-                        Resource res2 = node2.asResource();
-                        matches.add(res1, OWL.sameAs, res2);
+    private boolean getBooleanValue(String subjectURI, String propertyURI, Model model, boolean notFound) {
+        StmtIterator sit = model.listStatements(model.getResource(subjectURI), model.getProperty(propertyURI), (RDFNode) null);
+        for (Statement stmt : sit.toList()) {
+                if(stmt.getObject().isLiteral()) {
+                    Literal lit = stmt.getObject().asLiteral();
+                    Object obj = lit.getValue();
+                    if(obj instanceof Boolean) {
+                        return (Boolean) obj;
                     }
                 }
             }
-        }
-        return matches;
+        
+        return notFound;
     }
     
-    protected Model getMatches(LinkedList<QuerySolution> window, int matchDegree) {
-        Model matches = ModelFactory.createDefaultModel();
-        for(int i = 0; i < window.size(); i++) {
-            matches.add(getMatches(window, matchDegree, i));
-        }
-        return matches;
-    }
-    
-    private boolean matchFuzzily(QuerySolution qsoln1, QuerySolution qsoln2, int matchDegree) {
-        RDFNode n1 = qsoln1.get("value");
-        if(n1.isLiteral()) {
-            String string1 = n1.asLiteral().getLexicalForm();
-            RDFNode n2 = qsoln2.get("value");
-            if(n2.isLiteral()) {
-                String string2 = n2.asLiteral().getString();
-                // TODO express some other way
-                // matchDegree 19 is magic value for initial-only match
-                if(matchDegree == 19) {
-                    return initialsMatch(string1, string2);
-                }
-                int distance = distance(string1, string2);
-                if(distance == 0) {
-                    return true;
-                }
-                float avglen = ((string1.length() + string2.length()) / 2);
-                if(avglen == 0) {
-                    return false;
-                }
-                if(distance >= avglen) {
-                    return false;
-                } 
-                float score = ((1 - (distance / avglen))  * 100);
-                log.debug("Match score: " + score);
-                boolean match = (score >= matchDegree);
-                log.debug("Required score " + matchDegree + " (" + (match ? "PASS" : "FAIL") + ")");
-                return match;
+    private String getURIValue(String subjectURI, String propertyURI, Model model) {
+        StmtIterator sit = model.listStatements(model.getResource(subjectURI), model.getProperty(propertyURI), (Resource) null);
+        for (Statement stmt : sit.toList()) {
+            if(stmt.getObject().isURIResource()) {
+                return stmt.getObject().asResource().getURI();
             }
         }
-        return false;
+        
+        return null;
     }
-    
-    private boolean initialsMatch(String string1, String string2) {
-        if(string1.isEmpty() || string2.isEmpty()) {
-            return false;
-        } else {
-            return (string1.charAt(0) == string2.charAt(0));
-        }
-    }
-    
-    private LinkedList<QuerySolution> prepopulate(
-            LinkedList<QuerySolution> window, ResultSet rs, int windowSize) {
-        int limit = windowSize;
-        while(limit > 0 && rs.hasNext()) {
-            window.add(rs.next());
-            limit--;
-        }
-        return window;
-    }
-    
-    protected String getFuzzyQueryStr(MergeRule rule, MergeRuleAtom atom, Model fauxPropertyContextModel) {
-        if(isFauxPropertyContext(atom.getMergeObjectPropertyURI(), 
-                fauxPropertyContextModel)) {
-            FauxPropertyContext ctx = getFauxPropertyContext(
-                    atom.getMergeObjectPropertyURI(), 
-                    fauxPropertyContextModel);
-            if(!ctx.getQualifiedBy().startsWith(VCARD)) {
-                throw new RuntimeException("Invalid atom " + atom.getURI() 
-                + " : fuzzy matches on non-vCard faux properties not permitted");
-            }
-            String fuzzyVCardQueryStr = getFuzzyVCardQueryStr(rule, atom, ctx);
-            if(fuzzyVCardQueryStr != null) {
-                return fuzzyVCardQueryStr;
-            }
-        } 
-        String queryStr;
-        if(atom.getMergeDataPropertyURI().startsWith(VCARD) 
-                && atom.getMergeDataPropertyURI().endsWith("Name")) {
-            queryStr = getSingleEndedVcardNameQuery(rule, atom);
-        } else {
-            queryStr = "SELECT ?x ?value WHERE { \n" +
-                "    ?x a <" + rule.getMergeClassURI() + "> ." +
-                "    ?x <" + atom.getMergeDataPropertyURI() + "> ?val \n" +
-                "    BIND(LCASE(?val) AS ?value) \n" +
-                "} ORDER BY ?value \n";
-        }
-        return queryStr;
-    }
-    
-    protected String getFuzzyVCardQueryStr(MergeRule rule, MergeRuleAtom atom, 
-            FauxPropertyContext ctx) {
-        String connectingProperty;
-        String datatypeProperty;
-        if((VCARD + "Telephone").equals(ctx.getQualifiedBy()) 
-                || (VCARD + "Fax").equals(ctx.getQualifiedBy())) {
-            connectingProperty = VCARD + "hasTelephone";
-            datatypeProperty = VCARD + "telephone";
-        } else if ((VCARD + "Work").equals(ctx.getQualifiedBy()) 
-                || (VCARD + "Email").equals(ctx.getQualifiedBy())) {
-            connectingProperty = VCARD + "hasEmail";
-            datatypeProperty = VCARD + "email";
-        } else if ((VCARD + "URL").equals(ctx.getQualifiedBy())) { 
-            connectingProperty = VCARD + "hasURL";
-            datatypeProperty = VCARD + "url";
-        } else {
-            return null;
-        }
-        return  
-                "SELECT ?x ?value WHERE {" +
-                "    ?x a <" + rule.getMergeClassURI() + "> . \n" +
-                "    ?x <" + ctx.getPropertyURI() + "> ?vcard . \n" +
-                "    ?vcard <" + connectingProperty +"> ?box . \n" +
-                "    ?box a <" + ctx.getQualifiedBy() + "> . \n" +
-                "    ?box <" + datatypeProperty + "> ?value . \n" +
-            "} \n";
-    }
-    
-    private int distance(String string1, String string2) {  
-        if(string1 == null || string2 == null) {
-            return Integer.MAX_VALUE;
-        }
-        int distance = ld.apply(string1.toLowerCase(), string2.toLowerCase());
-        log.debug("Case-insensitive Levenshtein distance " + distance + 
-                " for " + string1 + " , " + string2);
-        return distance;
-    }
-    
-    protected Model getRelationshipSameAs(SparqlEndpoint endpoint) {
-        Model m = ModelFactory.createDefaultModel();
-        String relationshipListQuery = "SELECT ?x WHERE { \n" +
-                " { ?x a <" + VIVO + "Position> } \n" +
-                "   UNION \n" +
-                " { ?x a <" + VIVO + "Authorship> } \n" +
-                "} \n";
-        ResultSet rs = endpoint.getResultSet(relationshipListQuery);
-        int count = 0;
-        while(rs.hasNext()) {
-            QuerySolution qsoln = rs.next();
-            RDFNode xnode = qsoln.get("x");
-            if(xnode.isURIResource()) {
-                String x = xnode.asResource().getURI();
-                log.debug("Processing x= " + x);
-                String query = "CONSTRUCT { ?x1 <"+ OWL.sameAs.getURI() + "> ?y1 . \n" +
-                        "    ?y1 <"+ OWL.sameAs.getURI() + "> ?x1 . \n" +
-                        "} WHERE { \n" +
-                        "    <" + x + "> a <" + VIVO + "Relationship> . \n" +
-                        "    <" + x + "> <" + VIVO +"relates> ?a . \n" +
-                        "    <" + x + "> <" + VIVO +"relates> ?b . \n" +
-                        "    <" + x + "> <http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType> ?mst . \n" +
-                        " FILTER NOT EXISTS { <" + x + "> <" + VIVO + "dateTimeInterval> ?dti } \n" +
-                        " FILTER NOT EXISTS { <" + x + "> <" + RDFS.label + "> ?label } \n" +
-                        " FILTER (?a != ?b) \n" +
-                        "    ?a <" + OWL.sameAs.getURI() + "> ?a1 . \n" +
-                        "    ?b <" + OWL.sameAs.getURI() + "> ?b1 . \n" +
-                        "    ?y <" + VIVO +"relates> ?b1 . \n" +
-                        "    ?y <" + VIVO +"relates> ?a1 . \n" +
-                        "    ?y a <" + VIVO + "Relationship> . \n" +
-                        "    ?y <http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType> ?mst . \n" +
-                        " FILTER NOT EXISTS { ?y <" + VIVO + "dateTimeInterval> ?dti } \n" +
-                        " FILTER NOT EXISTS { ?y <" + RDFS.label + "> ?label } \n" +  
-                        " FILTER (<" + x + "> != ?y) \n" +  
-                        " <" + x + "> <" + OWL.sameAs.getURI() + "> ?x1 . \n" +
-                        " ?y <" + OWL.sameAs.getURI() + "> ?y1 . \n" +
-                        "} \n";
-                m.add(endpoint.construct(query));                     
-            }
-            count++;
-            if(count % 1000 == 0) {
-                log.info("Processed " + count + " relationships");
-            }
-        }
-        return m;
-    }
-    
-    protected Model getRoleSameAs(SparqlEndpoint endpoint) {
-        Model m = ModelFactory.createDefaultModel();
-        String relationshipListQuery = "SELECT ?x WHERE { \n" +
-                " ?x a <" + ROLE + "> \n" +
-                "} \n";
-        ResultSet rs = endpoint.getResultSet(relationshipListQuery);
-        int count = 0;
-        while(rs.hasNext()) {
-            QuerySolution qsoln = rs.next();
-            RDFNode xnode = qsoln.get("x");
-            if(xnode.isURIResource()) {
-                String x = xnode.asResource().getURI();
-                log.debug("Processing x= " + x);
-                String query = "CONSTRUCT { ?x1 <"+ OWL.sameAs.getURI() + "> ?y1 . \n" +
-                        "    ?y1 <"+ OWL.sameAs.getURI() + "> ?x1 . \n" +
-                        "} WHERE { \n" +
-                        "    <" + x + "> a <" + ROLE + "> . \n" +
-                        "    <" + x + "> <" + INHERES_IN + "> ?a . \n" +
-                        "    <" + x + "> <" + REALIZED_IN + "> ?b . \n" +
-                        "    <" + x + "> <http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType> ?mst . \n" +
-                        " FILTER NOT EXISTS { <" + x + "> <" + VIVO + "dateTimeInterval> ?dti } \n" +
-                        " FILTER NOT EXISTS { <" + x + "> <" + RDFS.label + "> ?label } \n" +
-                        " FILTER (?a != ?b) \n" +
-                        "    ?a <" + OWL.sameAs.getURI() + "> ?a1 . \n" +
-                        "    ?b <" + OWL.sameAs.getURI() + "> ?b1 . \n" +
-                        "    ?y <" + REALIZED_IN + "> ?b1 . \n" +
-                        "    ?y <" + INHERES_IN + "> ?a1 . \n" +
-                        "    ?y a <" + ROLE + "> . \n" +
-                        "    ?y <http://vitro.mannlib.cornell.edu/ns/vitro/0.7#mostSpecificType> ?mst . \n" +
-                        " FILTER NOT EXISTS { ?y <" + VIVO + "dateTimeInterval> ?dti } \n" +
-                        " FILTER NOT EXISTS { ?y <" + RDFS.label + "> ?label } \n" +  
-                        " FILTER (<" + x + "> != ?y) \n" +  
-                        " <" + x + "> <" + OWL.sameAs.getURI() + "> ?x1 . \n" +
-                        " ?y <" + OWL.sameAs.getURI() + "> ?y1 . \n" +
-                        "} \n";
-                m.add(endpoint.construct(query));                     
-            }
-            count++;
-            if(count % 1000 == 0) {
-                log.info("Processed " + count + " roles");
-            }
-        }
-        return m;
-    }
-    
-    protected String loadQuery(String resourcePath) throws IOException {
-        InputStream inputStream = this.getClass().getResourceAsStream(resourcePath);
-        StringBuffer fileContents = new StringBuffer();
-        BufferedReader reader = null;
-        try {
-            reader = new BufferedReader(new InputStreamReader(inputStream));
-            String ln;
-            while ( (ln = reader.readLine()) != null) {
-                fileContents.append(ln).append('\n');
-            }
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-        return fileContents.toString();
-    }
-  
-    
-    private class AffectedClassRuleComparator implements Comparator<MergeRule> {
 
-        private SparqlEndpoint sparqlEndpoint;
+    private List<Resource> getMergeRuleURIs(String configURI, SparqlEndpoint endpoint) throws IOException {
+        String queryStr =   "SELECT ?x WHERE { \n" +
+                            "    <" + configURI + "> <" + HASMERGERULE + "> ?x . \n" +
+                            "    ?x <" + PRIORITY + "> ?prio . \n" +
+                            "    FILTER NOT EXISTS { ?x <" + DISABLED + "> true } \n" + 
+                            "} ORDER BY ?prio \n";
         
-        public AffectedClassRuleComparator(SparqlEndpoint sparqlEndpoint) {
-            this.sparqlEndpoint = sparqlEndpoint;
+        List<Resource> result = new LinkedList<>();
+        for (QuerySolution sol :  endpoint.listResults(queryStr)) {
+            result.add(sol.get("x").asResource());
         }
         
-        public int compare(MergeRule a, MergeRule b) {
-            int aRank = rankAffectedClass(a.getMergeClassURI());
-            int bRank = rankAffectedClass(b.getMergeClassURI());
-            if(aRank != bRank) {
-                return aRank - bRank;
-            } else {
-                if(a.getMergeClassURI() == null) {
-                    return -1;
-                } else if (b.getMergeClassURI() == null) {
-                    return 1;
-                } else {
-                    return a.getMergeClassURI().compareTo(b.getMergeClassURI());
-                }
-            }
-        }
-        
-        private int rankAffectedClass(String classURI) {
-            if(classURI == null) {
-                return 0;
-            } else {
-                if(isSubclass(classURI, BIBO_COLLECTION, this.sparqlEndpoint)) {
-                    return -2;
-                } else if (isSubclass(classURI, BIBO_DOCUMENT, this.sparqlEndpoint)) {
-                    return -1;
-                } else if (isSubclass(classURI, FOAF_ORGANIZATION, this.sparqlEndpoint)) {
-                    return 1;
-                } else if (isSubclass(classURI, FOAF_PERSON, this.sparqlEndpoint)) {
-                    return 2;
-                } else {
-                    return 0;
-                }
-            }
-        }
-        
+        return result;
     }
+
     
+    // INNER CLASSES
+    
+    private class SameAsQueryBuilder {
+        
+        private final Map<MergeRule, String> rules = new LinkedHashMap<MergeRule, String>();
+
+        private Pattern pattern = Pattern.compile("\\?\\w+");
+
+        
+        public void addRule(MergeRule rule, String linkedObjURI) {
+            rules.put(rule, linkedObjURI);
+        }
+        
+        public String build() throws IOException {
+            int queryNum = rules.size();
+            StringBuilder result = new StringBuilder();
+            
+            result.append("CONSTRUCT { \n");
+            
+            for (int i=0; i<queryNum; i++) {
+                result.append("    ?x_").append(i).append(" <").append(OWL.sameAs.getURI()).append("> ?y").append("_").append(i).append(" . \n");
+                result.append("    ?y_").append(i).append(" <").append(OWL.sameAs.getURI()).append("> ?x").append("_").append(i).append(" . \n");
+            }
+            
+            result.append("} WHERE { \n");
+            
+            StringBuilder outerFilter = new StringBuilder();
+            
+            int i = 0;
+            for (Entry<MergeRule, String> entry : rules.entrySet()) {
+                MergeRule rule = entry.getKey();
+                String linkedObjURI = entry.getValue();
+                String atomQueries = getAllAtomQueries(rule);
+                
+                result.append(renameVars(atomQueries, i, Collections.emptyList()));
+
+                if (null != linkedObjURI) {
+                    String filter = getLinkedRuleOuterFilter(rule, linkedObjURI);
+                    filter = renameVars(filter, i, Arrays.asList(new String[] {"?x", "?y"}));
+                    
+                    if (1 == i) {
+                        filter = filter.replace("?x ", "?x_0 ");
+                        filter = filter.replace("?y ", "?y_0 ");
+                    } else {
+                        filter = filter.replace("?x ", "?otherX_" + (i-1) + " ");
+                        filter = filter.replace("?y ", "?otherY_" + (i-1) + " ");
+                    }
+                    
+                    outerFilter.append(filter);
+
+                    result.append("    ?x_").append(i-1).append(" <").append(linkedObjURI).append("> ?x").append("_").append(i).append(" . \n");
+                    result.append("    ?y_").append(i-1).append(" <").append(linkedObjURI).append("> ?y").append("_").append(i).append(" . \n");
+                }
+                
+                result.append("    FILTER NOT EXISTS { ?x_").append(i).append(" <").append(OWL.sameAs.getURI()).append("> ?y_").append(i).append(" } \n");
+                result.append("    FILTER NOT EXISTS { ?y_").append(i).append(" <").append(OWL.sameAs.getURI()).append("> ?x_").append(i).append(" } \n");
+                result.append("    FILTER NOT EXISTS { ?x_").append(i).append(" <").append(OWL.differentFrom.getURI()).append("> ?y_").append(i).append(" } \n");
+                result.append("    FILTER NOT EXISTS { ?y_").append(i).append(" <").append(OWL.differentFrom.getURI()).append("> ?x_").append(i).append(" } \n");
+                
+                i++;
+            }
+            
+            result.append(outerFilter);
+            for (int j=1; j<i; j++) {
+                result.append("   } } \n");             // opened in getLinkedRuleOuterFilter() by: FILTER NOT EXISTS {
+            }
+
+            
+            result.append("} \n");                      // close: WHERE {
+            
+            
+            return result.toString();
+        }
+        
+        private String renameVars(String query, int varNum, List<String> excludedVars) {
+            String result = query;
+            Matcher m = pattern.matcher(query);
+            Set<String> processedVars = new HashSet<String>();
+            
+            // renaming of variables because of combined query based on multiple rules
+            while (m.find()) {
+                String varName = m.group(0);
+                
+                if (!excludedVars.contains(varName) && processedVars.add(varName)) {
+                    result = StringUtils.replacePattern(result, "\\" + varName + "(?=[ ,])", varName + "_" + varNum);
+                }
+            }
+            
+            return result;
+        }
+
+
+    }
+
 }

@@ -6,6 +6,7 @@ public class DataTaskStatus {
     private String message;
     private boolean isRunning;
     private long totalRecords;
+    private int progress;
 
 
     public boolean isStatusOk() {
@@ -41,6 +42,15 @@ public class DataTaskStatus {
     public void setTotalRecords(long totalRecords) {
         this.totalRecords = totalRecords;
     }
+
+    public int getProgress() {
+        return progress;
+    }
+
+    public void setProgress(int progress) {
+        this.progress = progress;
+    }
     
 
+    
 }

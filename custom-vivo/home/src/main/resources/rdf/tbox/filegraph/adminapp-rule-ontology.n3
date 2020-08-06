@@ -24,10 +24,21 @@
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "disable"@en .
+	
+:nameVariants a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:domain :TextMergeAtom ;
+	rdfs:range xsd:boolean ;
+	vitro:displayRankAnnot 25;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "match on name variants"@en .
 
 :matchDegree a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
-	rdfs:domain :MergeRuleAtom ;
+	rdfs:domain :TextMergeAtom ;
 	rdfs:range xsd:integer ;
 	vitro:displayRankAnnot 30 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
@@ -35,6 +46,28 @@
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "match percentage"@en .
+	
+:numberPublications a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:domain :AuthorGroupMergeAtom ;
+	rdfs:range xsd:integer ;
+	vitro:displayRankAnnot 40 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "number of publications containing the author group"@en .
+
+:numberPersons a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:domain :AuthorGroupMergeAtom ;
+	rdfs:range xsd:integer ;
+	vitro:displayRankAnnot 50 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "number of authors in a group"@en .
 
 # 
 # #################################################################
@@ -45,15 +78,15 @@
 # 
 # 
 
+#
+# <http://vivoweb.org/ontology/adminapp/MergeRule>
+
 :MergeRule rdfs:label "Merge Rule"@en ;
         a owl:Class ; 
 	rdfs:subClassOf _:genid2 ;
 	rdfs:subClassOf _:genid3 ;
-	rdfs:subClassOf _:genid6 .
-
-_:genid6 a owl:Restriction ;
-	owl:onProperty :priority ;
-	owl:allValuesFrom xsd:integer .
+	rdfs:subClassOf _:genid6 ;
+	rdfs:subClassOf _:genid8 .
 
 _:genid2 a owl:Restriction ;
         owl:onProperty :hasAtom ;
@@ -63,29 +96,86 @@ _:genid3 a owl:Restriction ;
         owl:onProperty :mergeRuleClass ;
 	owl:someValuesFrom owl:Class .
 
+_:genid6 a owl:Restriction ;
+	owl:onProperty :priority ;
+	owl:allValuesFrom xsd:integer .
+
+_:genid8 a owl:Restriction ;
+	owl:onProperty :hasLinkedMergeRule ;
+	owl:someValuesFrom :LinkedMergeRule .
+
+#
+# <http://vivoweb.org/ontology/adminapp/MergeRuleAtom>
+
 :MergeRuleAtom rdfs:label "Merge Rule Pattern"@en ;
+        a owl:Class .
+	
+#
+# <http://vivoweb.org/ontology/adminapp/TextMergeAtom>
+
+:TextMergeAtom rdfs:label "Text Merge Pattern"@en ;
         a owl:Class ;
+	rdfs:subClassOf :MergeRuleAtom ;
 	rdfs:subClassOf _:genid4 ;
-	rdfs:subClassOf _:genid5 ;
 	rdfs:subCLassOf _:genid7 .
 
 _:genid4 a owl:Restriction ;
 	owl:onProperty :mergeAtomDataProperty ;
 	owl:allValuesFrom owl:DatatypeProperty .
 
+_:genid7 a owl:Restriction ;
+	owl:onProperty :matchDegree ;
+	owl:allValuesFrom xsd:integer .
+
+#
+# <http://vivoweb.org/ontology/adminapp/AuthorGroupMergeAtom>
+
+:AuthorGroupMergeAtom rdfs:label "Author Group Merge Pattern"@en ;
+        a owl:Class ;
+	rdfs:subClassOf :TextMergeAtom ;
+	rdfs:subClassOf _:genid11 ;
+	rdfs:subClassOf _:genid12 .
+	
+_:genid11 a owl:Restriction ;
+	owl:onProperty :numberPublications ;
+	owl:allValuesFrom owl:DatatypeProperty .
+
+_:genid12 a owl:Restriction ;
+	owl:onProperty :numberPersons ;
+	owl:allValuesFrom owl:DatatypeProperty .
+
+#
+# <http://vivoweb.org/ontology/adminapp/ObjectPropertyMergeAtom>
+
+:ObjectPropertyMergeAtom rdfs:label "Object Property Merge Pattern"@en ;
+        a owl:Class ;
+	rdfs:subClassOf :MergeRuleAtom ;
+	rdfs:subClassOf _:genid5 .
+	
 _:genid5 a owl:Restriction ;
 	owl:onProperty :mergeAtomObjectProperty ;
 	owl:allValuesFrom owl:ObjectProperty .
 
-_:genid7 a owl:Restriction ;
-	owl:onProperty :matchDegree ;
-	owl:allValuesFrom xsd:integer .
+#
+# <http://vivoweb.org/ontology/adminapp/DataMerge>
 
 :DataMerge rdfs:subClassOf _:genid1 .
 
 _:genid1 a owl:Restriction ;
 	owl:onProperty :hasMergeRule ;
 	owl:someValuesFrom :MergeRule .
+	
+#
+# <http://vivoweb.org/ontology/adminapp/LinkedMergeRule>
+
+:LinkedMergeRule rdfs:label "Linked Merge Rule"@en ;
+        a owl:Class ;
+	rdfs:subClassOf _:genid9 .
+
+_:genid9 a owl:Restriction ;
+	owl:onProperty :linkedByObjectProperty ;
+	owl:allValuesFrom owl:ObjectProperty .
+
 
 #####################
 # Object properties #
@@ -93,13 +183,25 @@ _:genid1 a owl:Restriction ;
 
 :hasMergeRule a owl:ObjectProperty ;
         rdfs:label "merge rule"@en ;
+        a owl:FunctionalProperty ;
 	vitro:displayRankAnnot 10 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
 	vitro:offerCreateNewOptionAnnot true ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+    rdfs:domain :LinkedMergeRule ;
 	rdfs:range :MergeRule .
+	
+:hasLinkedMergeRule a owl:ObjectProperty ;
+        rdfs:label "linked merge rule"@en ;
+	vitro:displayRankAnnot 31 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:offerCreateNewOptionAnnot true ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:range :LinkedMergeRule .
 
 :hasAtom a owl:ObjectProperty ;
         rdfs:label "merge rule pattern"@en ;
@@ -112,6 +214,7 @@ _:genid1 a owl:Restriction ;
 	rdfs:range :MergeRuleAtom .
 
 :mergeRuleClass a owl:ObjectProperty ;
+        a owl:FunctionalProperty ;
         rdfs:label "merges individuals of class"@en ;
 	vitro:displayRankAnnot 10 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
@@ -122,6 +225,7 @@ _:genid1 a owl:Restriction ;
 	rdfs:range owl:Class .
 
 :mergeAtomDataProperty a owl:ObjectProperty ;
+        a owl:FunctionalProperty ;
         rdfs:label "merges on data property"@en ;
 	vitro:displayRankAnnot 20 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
@@ -131,7 +235,20 @@ _:genid1 a owl:Restriction ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:range owl:DatatypeProperty .
 
+:linkedByObjectProperty a owl:ObjectProperty ;
+        a owl:FunctionalProperty ;
+        rdfs:label "linked by object property"@en ;
+	vitro:displayRankAnnot 6 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:offerCreateNewOptionAnnot true ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:customEntryFormAnnot "org.vivoweb.adminapp.form.generator.MergesOnObjectPropertyGenerator"^^xsd:string ;
+	rdfs:range owl:ObjectProperty .
+
 :mergeAtomObjectProperty a owl:ObjectProperty ;
+        a owl:FunctionalProperty ;
         rdfs:label "merges on object property"@en ;
 	vitro:displayRankAnnot 22 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;

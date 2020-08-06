@@ -13,7 +13,6 @@ public abstract class DataTask {
     
     private final String uri;
     private String name;
-    private String resultsGraphURI;
     private int priority;
     private DataTaskStatus status = new DataTaskStatus();
     private String lastUpdate;
@@ -30,6 +29,7 @@ public abstract class DataTask {
 
     public abstract long run(DataTaskDao dataSourceDao) throws IOException;
     
+    public abstract boolean indexingEnabled();
     
     public String getName() {
         return name;
@@ -37,14 +37,6 @@ public abstract class DataTask {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getResultsGraphURI() {
-        return resultsGraphURI;
-    }
-
-    public void setResultsGraphURI(String resultsGraphURI) {
-        this.resultsGraphURI = resultsGraphURI;
     }
 
     public int getPriority() {
@@ -57,10 +49,6 @@ public abstract class DataTask {
 
     public DataTaskStatus getStatus() {
         return status;
-    }
-
-    public void setStatus(DataTaskStatus status) {
-        this.status = status;
     }
 
     public String getLastUpdate() {

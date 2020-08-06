@@ -34,14 +34,14 @@ public class ServiceInvoker extends FreemarkerHttpServlet {
     public ResponseValues processRequest(VitroRequest request) 
             throws IOException, URISyntaxException {
         VitroRequest vreq = new VitroRequest(request);
-        String dataSourceURI = vreq.getParameter("uri");
+        String taskURI = vreq.getParameter("uri");
         DataSourceScheduler scheduler = DataSourceScheduler.getInstance(getServletContext());
         if(vreq.getParameter("start") != null) {
-            log.info("Starting data source");
-            scheduler.startNow(dataSourceURI);
+            log.info("Task start requested: " + taskURI);
+            scheduler.startNow(taskURI);
         } else if (vreq.getParameter("stop") != null) {
-            log.info("Stopping data source");
-            scheduler.stopNow(dataSourceURI);
+            log.info("Task stop requested: " + taskURI);
+            scheduler.stopNow(taskURI);
         }
         try {
             Thread.sleep(1000); // wait for things to start before redirecting user

@@ -17,6 +17,8 @@
 # #################################################################
 # 
 # 
+
+
 # http://vivoweb.org/ontology/adminapp/endpointURI
 
 :endpointURI a owl:DatatypeProperty ;
@@ -42,19 +44,7 @@
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "endpoint update URI"@en .
-# 
-# http://vivoweb.org/ontology/adminapp/graphURI
 
-:graphURI a owl:DatatypeProperty ;
-        a owl:FunctionalProperty ;
-	rdfs:domain :DataTask ;
-	rdfs:range xsd:anyURI ;
-	vitro:displayRankAnnot 70 ;
-	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	rdfs:label "graph URI"@en .
 # 
 # http://vivoweb.org/ontology/adminapp/password
 
@@ -201,6 +191,18 @@
 	rdfs:label "result number"@en .
 	
 # 
+# http://vivoweb.org/ontology/adminapp/progress
+
+:progress a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:range xsd:integer ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:displayRankAnnot 45 ;
+	rdfs:label "progress (percent)"@en .
+	
+# 
 # http://vivoweb.org/ontology/adminapp/isOK
 
 :isOK a owl:DatatypeProperty ;
@@ -258,9 +260,14 @@
 # http://vivoweb.org/ontology/adminapp/DataPublish
 
 :DataPublish a owl:Class ;
+	rdfs:label "Data Publish" ;
 	rdfs:subClassOf :DataTask ;
-	rdfs:label "Data Publish" .
-
+	rdfs:subClassOf _:genid10 .
+	
+_:genid10 a owl:Restriction ;
+	owl:onProperty :publishToEndpoint ;
+	owl:allValuesFrom :SparqlEndpoint .
+	
 # 
 # http://vivoweb.org/ontology/adminapp/SparqlEndpoint
 
@@ -317,6 +324,16 @@ _:genid9 a owl:Restriction ;
 :usesSparqlEndpoint a owl:ObjectProperty ;
         rdfs:label "uses SPARQL endpoint"@en ;
 	vitro:displayRankAnnot 60 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:offerCreateNewOptionAnnot true ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:range :SparqlEndpoint .
+
+:publishToEndpoint a owl:ObjectProperty ;
+        rdfs:label "publish to SPARQL endpoint"@en ;
+	vitro:displayRankAnnot 70 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
 	vitro:offerCreateNewOptionAnnot true ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
