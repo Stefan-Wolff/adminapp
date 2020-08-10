@@ -22,25 +22,23 @@ import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
-import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDFS;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
+import org.vivoweb.adminapp.datasource.util.RDFUtils;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
  * Implementation of the data merge task.
  * 
- * @author Stefan.Wolff@slub-dresden.de
+ * @author swolff
  *
  */
 public class DataMerge extends DataTask {
@@ -70,6 +68,8 @@ public class DataMerge extends DataTask {
     private static final String BASIC_SAMEAS_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/basicSameAs";
     private static final String MATCHVALUE_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/basicMatchValue";
 
+    private final RDFUtils rdfUtils = new RDFUtils();
+    
     public DataMerge(String taskUri) {
         super(taskUri);
     }
@@ -540,9 +540,9 @@ public class DataMerge extends DataTask {
 
     protected MergeRule getMergeRule(String ruleURI, Model model) {
         MergeRule mergeRule = new MergeRule(ruleURI);
-        Integer priority = getInteger(ruleURI, PRIORITY, model, 0);
+        Integer priority = rdfUtils.getIntValue(ruleURI, PRIORITY, model, 0);
         mergeRule.setPriority(priority);
-        mergeRule.setMergeClassURI(getString(ruleURI, MERGERULECLASS, model));
+        mergeRule.setMergeClassURI(rdfUtils.getString(ruleURI, MERGERULECLASS, model));
         StmtIterator atomIt = model.listStatements(model.getResource(ruleURI), model.getProperty(HASATOM), (RDFNode) null);
         for (Statement atomStmt : atomIt.toList()) {
             if (atomStmt.getObject().isURIResource()) {
@@ -555,8 +555,8 @@ public class DataMerge extends DataTask {
             if (linkedStmt.getObject().isURIResource()) {
                 Resource linkedMergeRule = linkedStmt.getObject().asResource();
                 
-                String linkedObjPropURI = getString(linkedMergeRule, model.getProperty(LINKEDBYOBJECTPROPERTY), model);
-                String linkedRuleURI = getString(linkedMergeRule, model.getProperty(HASMERGERULE), model);
+                String linkedObjPropURI = rdfUtils.getString(linkedMergeRule.getURI(), LINKEDBYOBJECTPROPERTY, model);
+                String linkedRuleURI = rdfUtils.getString(linkedMergeRule.getURI(), HASMERGERULE, model);
 
                 mergeRule.addLinkedRule(linkedObjPropURI, getMergeRule(linkedRuleURI, model));
             }
@@ -566,7 +566,7 @@ public class DataMerge extends DataTask {
     }
 
     private MergeRuleAtom createAtom(String atomURI, Model model) {
-        String classURI = getURIValue(atomURI, DataTaskDao.MOSTSPECIFICTYPE, model);
+        String classURI = rdfUtils.getURIValue(atomURI, DataTaskDao.MOSTSPECIFICTYPE, model);
         MergeRuleAtom result;
         
         switch(classURI) {
@@ -591,86 +591,24 @@ public class DataMerge extends DataTask {
     
     private TextMergeAtom createTextMergeAtom(String uri, Model model) {
         return new TextMergeAtom(uri, 
-                                     getString(uri, MERGEATOMDATAPROPERTY, model),
-                                     getInteger(uri, MATCHDEGREE, model, 100),
-                                     getBooleanValue(uri, NAMEVARIANTS, model, false));
+                                     rdfUtils.getString(uri, MERGEATOMDATAPROPERTY, model),
+                                     rdfUtils.getIntValue(uri, MATCHDEGREE, model, 100),
+                                     rdfUtils.getBooleanValue(uri, NAMEVARIANTS, model, false));
     }
     
     private AuthorGroupMergeAtom createAuthorGroupAtom(String uri, Model model) {
         return new AuthorGroupMergeAtom(uri,
-                                            getString(uri, MERGEATOMDATAPROPERTY, model),
-                                            getInteger(uri, MATCHDEGREE, model, 100),
-                                            getBooleanValue(uri, NAMEVARIANTS, model, false),
-                                            getInteger(uri, NUMBERPUBLICATIONS, model, 0),
-                                            getInteger(uri, NUMBERPERSONS, model, 0));
+                                            rdfUtils.getString(uri, MERGEATOMDATAPROPERTY, model),
+                                            rdfUtils.getIntValue(uri, MATCHDEGREE, model, 100),
+                                            rdfUtils.getBooleanValue(uri, NAMEVARIANTS, model, false),
+                                            rdfUtils.getIntValue(uri, NUMBERPUBLICATIONS, model, 0),
+                                            rdfUtils.getIntValue(uri, NUMBERPERSONS, model, 0));
     }
     
     private ObjectPropertyMergeAtom createObjectPropertyAtom(String uri, Model model) {
-        return new ObjectPropertyMergeAtom(uri, getString(uri, MERGEATOMOBJECTPROPERTY, model));
-    }
-
-    private String getString(String subjectURI, String predicateURI, Model model) {
-        Resource subject = ResourceFactory.createResource(subjectURI);
-        Property predicate = ResourceFactory.createProperty(predicateURI);
-
-        return getString(subject, predicate, model);
-    }
-
-    private String getString(Resource subject, Property predicate, Model model) {
-        StmtIterator sit = model.listStatements(subject, predicate, (RDFNode) null);
-        for (Statement stmt : sit.toList()) {
-            RDFNode object = stmt.getObject();
-            if (object.isLiteral()) {
-                return object.asLiteral().getLexicalForm();
-            } else if (object.isURIResource()) {
-                return object.asResource().getURI();
-            }
-        }
-        return null;
-    }
-
-    private Integer getInteger(String subjectURI, String predicateURI, Model model, Integer notFound) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), model.getProperty(predicateURI), (RDFNode) null);
-
-        for (Statement stmt : sit.toList()) {
-            if(stmt.getObject().isLiteral()) {
-                Literal lit = stmt.getObject().asLiteral();
-                Object obj = lit.getValue();
-                if (obj instanceof Integer) {
-                    return (Integer) obj;
-                }
-            }
-        }
-        
-        return notFound;
+        return new ObjectPropertyMergeAtom(uri, rdfUtils.getString(uri, MERGEATOMOBJECTPROPERTY, model));
     }
     
-    private boolean getBooleanValue(String subjectURI, String propertyURI, Model model, boolean notFound) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), model.getProperty(propertyURI), (RDFNode) null);
-        for (Statement stmt : sit.toList()) {
-                if(stmt.getObject().isLiteral()) {
-                    Literal lit = stmt.getObject().asLiteral();
-                    Object obj = lit.getValue();
-                    if(obj instanceof Boolean) {
-                        return (Boolean) obj;
-                    }
-                }
-            }
-        
-        return notFound;
-    }
-    
-    private String getURIValue(String subjectURI, String propertyURI, Model model) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), model.getProperty(propertyURI), (Resource) null);
-        for (Statement stmt : sit.toList()) {
-            if(stmt.getObject().isURIResource()) {
-                return stmt.getObject().asResource().getURI();
-            }
-        }
-        
-        return null;
-    }
-
     private List<Resource> getMergeRuleURIs(String configURI, SparqlEndpoint endpoint) throws IOException {
         String queryStr =   "SELECT ?x WHERE { \n" +
                             "    <" + configURI + "> <" + HASMERGERULE + "> ?x . \n" +

@@ -1,7 +1,30 @@
 <#-- $This file is distributed under the terms of the license in /doc/license.txt$ -->
 
-<#-- Default VIVO individual profile page template (extends individual.ftl in vitro) -->
+<#assign mostSpecType = "">
+<#list individual.mostSpecificTypes as type>
+	<#assign mostSpecType = type>
+	<#break>
+</#list>
 
+<#assign bodyClass = "">
+<#assign adminappTypes = ["Data Ingest", "Data Merge", "Merge Rule", "TextMergeAtom", "Author Group Merge Pattern", "ObjectPropertyMergeAtom", "Linked Merge Rule", "Data Publish", "Sparql Endpoint"]>
+<#if adminappTypes?seq_contains(mostSpecType)>
+	${stylesheets.add('<link rel="stylesheet" href="${urls.base}/css/adminapp.css" />')}
+	<#assign bodyClass = "adminapp">
+	
+	<h2 class="processing-tabs" id="processing-tabs"></h2>
+	<div id="adminapp-back"></div>
+	${headScripts.add('<script type="text/javascript" src="${urls.base}/js/adminapp.js"></script>')}
+	
+	<script>
+		addCurPage(document.location, "${title?html}", "${mostSpecType}");
+		showHeadTabs();
+		showBreadCrumb();
+	</script>
+</#if>
+
+
+<div class="${bodyClass}">
 <#include "individual-setup.ftl">
 <#import "lib-vivo-properties.ftl" as vp>
 
@@ -53,3 +76,5 @@ ${stylesheets.add('<link rel="stylesheet" href="${urls.base}/css/individual/indi
 ${headScripts.add('<script type="text/javascript" src="${urls.base}/js/jquery_plugins/jquery.truncator.js"></script>')}
 ${scripts.add('<script type="text/javascript" src="${urls.base}/js/individual/individualUtils.js"></script>')}
 ${scripts.add('<script type="text/javascript" src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>')}
+
+</div>

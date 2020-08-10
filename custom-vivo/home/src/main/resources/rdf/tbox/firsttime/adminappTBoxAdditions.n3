@@ -32,6 +32,15 @@
         vitro:prohibitedFromUpdateBelowRoleLevelAnnot
                 <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> .
 
+<http://vivoweb.org/ontology/adminapp/DataIngest>
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> .
+
+<http://vivoweb.org/ontology/adminapp/DataMerge>
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> .
+
+<http://vivoweb.org/ontology/adminapp/DataPublish>
+        vitro:inClassGroup  <http://vivoweb.org/ontology#vitroClassGroupequipment> .
+
 <http://vivoweb.org/ontology/adminapp/TextMergeAtom>
         <http://www.w3.org/2000/01/rdf-schema#label>
                 "Text Merge Pattern"@en-US ;

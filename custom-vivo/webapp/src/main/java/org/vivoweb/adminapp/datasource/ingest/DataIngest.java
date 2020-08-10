@@ -13,9 +13,9 @@ import org.vivoweb.adminapp.datasource.util.HttpUtils;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
- * Implementation of a data ingest task returning RDF format.
+ * Implementation of a data ingest task.
  * 
- * @author Stefan.Wolff@slub-dresden.de
+ * @author swolff
  */
 public class DataIngest extends DataTask {
 

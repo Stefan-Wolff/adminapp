@@ -49,3 +49,19 @@ table.adminTable thead td {
 	margin-top: .5em;
 	margin-bottom: .5em;
 }
+
+.adminapp #photo-wrapper, .adminapp .propertyTabsList {
+	display: none;
+}
+
+#adminapp-back {
+	margin-bottom: 20px;
+	font-size: 12px;
+}
+
+#adminapp-back a {
+	text-decoration: none;
+	margin-right: 10px;
+}
+
+	

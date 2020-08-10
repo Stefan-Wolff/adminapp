@@ -6,6 +6,9 @@ import java.util.Map;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
+/**
+ * @author swolff
+ */
 public class NameVariantBuilder {
 
     private final Map<String, String> nameCache = new HashMap<String, String>();

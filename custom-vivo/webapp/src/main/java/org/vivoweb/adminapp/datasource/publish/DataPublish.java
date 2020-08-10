@@ -22,11 +22,10 @@ import org.vivoweb.adminapp.datasource.ingest.DataIngest;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
- * A data source that takes a admin app's SPARQL endpoint as an input
- * and publishes data to a public VIVO endpoint, rewriting individuals
- * to use the highest-priority URI and dropping lower-priority duplicate values
- * for functional properties
- * @author Brian Lowe
+ * A task to publish deduplicated data to configured SPARQL endpoint. 
+ * At this point some of the merging work is done (merging of sameAs-ed triples). 
+ * 
+ * @author Brian Lowe, swolff
  *
  */
 public class DataPublish extends DataTask {

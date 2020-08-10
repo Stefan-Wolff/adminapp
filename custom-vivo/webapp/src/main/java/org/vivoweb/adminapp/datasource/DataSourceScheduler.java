@@ -12,7 +12,6 @@ import javax.servlet.ServletContextListener;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
@@ -33,11 +32,13 @@ import edu.cornell.mannlib.vitro.webapp.utils.developer.listeners.DeveloperDisab
 import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread;
 import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread.WorkLevel;
 
+/**
+ * @author Brian Lowe, swolff
+ */
 public class DataSourceScheduler implements ServletContextListener, ChangeListener {
 
     private ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
     private HashMap<String, ScheduledFuture<?>> scheduledTasks = new HashMap<String, ScheduledFuture<?>>();
-    private Model aboxModel;
     private DataTaskDao dataTaskDao;
     private RDFService rdfService;
     private static final String DATASOURCE_CONFIG_PROPERTY_PREFIX = "datasource.";
@@ -91,9 +92,9 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
         populateDataSourceRelatedConfigurationProperties(
                 ConfigurationProperties.getBean(sce).getPropertyMap());
         try {
-            this.aboxModel = ModelAccess.on(sce.getServletContext()).getOntModelSelector().getABoxModel();
+            Model aboxModel = ModelAccess.on(sce.getServletContext()).getOntModelSelector().getABoxModel();
             this.rdfService = ModelAccess.on(sce.getServletContext()).getRDFService();
-            this.dataTaskDao = new DataTaskDao(new RDFServiceModelConstructor(this.rdfService), this.aboxModel);
+            this.dataTaskDao = new DataTaskDao(new RDFServiceModelConstructor(this.rdfService), aboxModel);
             
         } catch (Exception e) {
             throw new RuntimeException(this.getClass().getSimpleName() 
@@ -156,22 +157,14 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     
     private void deleteNextUpdateDateTime(String dataSourceURI) {
         muteChangeListener(dataSourceURI);
-        aboxModel.removeAll(
-                aboxModel.getResource(dataSourceURI),
-                aboxModel.getProperty(DataTaskDao.NEXTUPDATE), 
-                null);
+        dataTaskDao.deleteNextUpdateDateTime(dataSourceURI);
         unmuteChangeListener(dataSourceURI);
-        return;
     }
     
     private void setNextUpdate(String dataSourceURI, LocalDateTime nextUpdate) {
         deleteNextUpdateDateTime(dataSourceURI);
         muteChangeListener(dataSourceURI);
-        aboxModel.add(
-                aboxModel.getResource(dataSourceURI),
-                aboxModel.getProperty(DataTaskDao.NEXTUPDATE), 
-                nextUpdate.toString(DateTimeFormat.forPattern(
-                        DataTaskDao.DATE_TIME_PATTERN)), XSDDatatype.XSDdateTime);
+        dataTaskDao.setNextUpdate(dataSourceURI, nextUpdate);
         unmuteChangeListener(dataSourceURI);
     }
     
@@ -231,7 +224,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
     }
 
     private DataTask loadTask(String dataSourceURI) {
-        DataTask result = this.dataTaskDao.getDataSource(dataSourceURI);
+        DataTask result = this.dataTaskDao.getTask(dataSourceURI);
         if(result == null) {
             throw new RuntimeException("Task " + dataSourceURI + " not found");
         }
@@ -369,7 +362,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
                     ) {
                 if(stmt.getSubject().isURIResource()) {
                     log.debug("Scheduling based on heard change");
-                    schedule(dataTaskDao.getDataSource(stmt.getSubject().asResource().getURI()));   
+                    schedule(dataTaskDao.getTask(stmt.getSubject().asResource().getURI()));   
                 }                
             }
         }

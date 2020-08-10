@@ -63,7 +63,7 @@
 :priority a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
 	rdfs:domain :DataTask ;
-	rdfs:range xsd:int ;
+	rdfs:range xsd:integer ;
 	vitro:displayRankAnnot 10 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;

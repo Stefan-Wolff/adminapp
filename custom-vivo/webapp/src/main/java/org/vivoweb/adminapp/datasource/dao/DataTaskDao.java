@@ -8,7 +8,6 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
-import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
@@ -26,6 +25,7 @@ import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
 import org.vivoweb.adminapp.datasource.ingest.DataIngest;
 import org.vivoweb.adminapp.datasource.merge.DataMerge;
 import org.vivoweb.adminapp.datasource.publish.DataPublish;
+import org.vivoweb.adminapp.datasource.util.RDFUtils;
 
 public class DataTaskDao {
     
@@ -59,6 +59,7 @@ public class DataTaskDao {
     
     private static final Log log = LogFactory.getLog(DataTaskDao.class);
     
+    private final RDFUtils rdfUtils = new RDFUtils();
     private final ModelConstructor readModelConstructor;
     private final Model aboxModel;
     private final String ingestTasksQuery = getDataSourcesQuery(DATAINGEST);
@@ -139,6 +140,16 @@ public class DataTaskDao {
         aboxModel.add(taskResource, aboxModel.getProperty(LASTUPDATE), timestamp, XSDDatatype.XSDdateTime);
     }
     
+    public void deleteNextUpdateDateTime(String taskURI) {
+        aboxModel.removeAll(aboxModel.getResource(taskURI), aboxModel.getProperty(NEXTUPDATE), null);
+    }
+    
+    public void setNextUpdate(String taskURI, LocalDateTime nextUpdate) {
+        deleteNextUpdateDateTime(taskURI);
+        aboxModel.add(aboxModel.getResource(taskURI), aboxModel.getProperty(NEXTUPDATE), 
+                      nextUpdate.toString(DateTimeFormat.forPattern(DATE_TIME_PATTERN)), XSDDatatype.XSDdateTime);
+    }
+    
     public void saveResultNum(String URI, long num) {
         aboxModel.removeAll(aboxModel.getResource(URI), aboxModel.getProperty(RESULTNUM), null);
         aboxModel.addLiteral(aboxModel.getResource(URI), aboxModel.getProperty(RESULTNUM), num);
@@ -153,13 +164,13 @@ public class DataTaskDao {
         return readModelConstructor.construct(queryStr);
     }
 
-    public DataTask getDataSource(String URI) {
+    public DataTask getTask(String URI) {
         String dataSourceQuery = getAllDataSourcesQuery().replaceAll("\\?taskURI", "<" + URI + ">");
         return createTaskByClassURI(URI, construct(dataSourceQuery));
     }
     
     private DataTask createTaskByClassURI(String URI, Model model) {
-        String classURI = getURIValue(URI, MOSTSPECIFICTYPE, model);
+        String classURI = rdfUtils.getURIValue(URI, MOSTSPECIFICTYPE, model);
         DataTask result;
         
         switch(classURI) {
@@ -183,9 +194,9 @@ public class DataTaskDao {
     
     private DataIngest createIngestTask(String URI, Model model) {
         DataIngest result = new DataIngest(URI, 
-                                                getStringValue(URI, SERVICEURI, model), 
-                                                getStringValue(URI, HTTPMETHOD, model),
-                                                getStringValue(URI, RESPONSEFORMAT, model));
+                                           rdfUtils.getString(URI, SERVICEURI, model), 
+                                           rdfUtils.getString(URI, HTTPMETHOD, model),
+                                           rdfUtils.getString(URI, RESPONSEFORMAT, model));
         
         StmtIterator httpParamIt = model.listStatements(model.getResource(URI), model.getProperty(HTTPPARAM), (RDFNode) null);
         for (Statement current : httpParamIt.toList()) {
@@ -232,129 +243,34 @@ public class DataTaskDao {
     }
     
     private void initTask(String URI, Model model, DataTask task) {
-        task.setName(getStringValue(URI, RDFS.label.getURI(), model));
-        task.setLastUpdate(getStringValue(URI, LASTUPDATE, model));
-        task.setNextUpdate(getStringValue(URI, NEXTUPDATE, model));
-        task.setPriority(getIntValue(URI, PRIORITY, model, Integer.MAX_VALUE));
+        task.setName(rdfUtils.getString(URI, RDFS.label.getURI(), model));
+        task.setLastUpdate(rdfUtils.getString(URI, LASTUPDATE, model));
+        task.setNextUpdate(rdfUtils.getString(URI, NEXTUPDATE, model));
+        task.setPriority(rdfUtils.getIntValue(URI, PRIORITY, model, Integer.MAX_VALUE));
         task.setEndpointParams(getEndpointParams(URI, USESSPARQLENDPOINT, model));
         
-        task.setUpdateFrequency(DataSourceUpdateFrequency.valueByURI(getURIValue(URI, UPDATEFREQUENCY, model)));
-        task.setScheduleAfterURI(getURIValue(URI, SCHEDULEAFTER, model));
+        task.setUpdateFrequency(DataSourceUpdateFrequency.valueByURI(rdfUtils.getURIValue(URI, UPDATEFREQUENCY, model)));
+        task.setScheduleAfterURI(rdfUtils.getURIValue(URI, SCHEDULEAFTER, model));
         
-        task.getStatus().setTotalRecords(getLongValue(URI, RESULTNUM, model, 0));
-        task.getStatus().setStatusOk(getBooleanValue(URI, ISOK, model, true));
-        task.getStatus().setMessage(getStringValue(URI, MESSAGE, model));
-        task.getStatus().setProgress(getIntValue(URI, PROGRESS, model, 0));
+        task.getStatus().setTotalRecords(rdfUtils.getLongValue(URI, RESULTNUM, model, 0));
+        task.getStatus().setStatusOk(rdfUtils.getBooleanValue(URI, ISOK, model, true));
+        task.getStatus().setMessage(rdfUtils.getString(URI, MESSAGE, model));
+        task.getStatus().setProgress(rdfUtils.getIntValue(URI, PROGRESS, model, 0));
     }
     
     private SparqlEndpointParams getEndpointParams(String taskURI, String propertyURI, Model model) {
-        String uri = getURIValue(taskURI, propertyURI, model);
+        String uri = rdfUtils.getURIValue(taskURI, propertyURI, model);
                
         SparqlEndpointParams result = new SparqlEndpointParams();
-        result.setEndpointURI(getStringValue(uri, ENDPOINTURI, model));
-        result.setEndpointUpdateURI(getStringValue(uri, ENDPOINTUPDATEURI, model));
-        result.setUsername(getStringValue(uri, ENDPOINTUSERNAME, model));
-        result.setPassword(getStringValue(uri, ENDPOINTPASSWORD, model));
+        result.setEndpointURI(rdfUtils.getString(uri, ENDPOINTURI, model));
+        result.setEndpointUpdateURI(rdfUtils.getString(uri, ENDPOINTUPDATEURI, model));
+        result.setUsername(rdfUtils.getString(uri, ENDPOINTUSERNAME, model));
+        result.setPassword(rdfUtils.getString(uri, ENDPOINTPASSWORD, model));
         
         return result;
     }
     
-    
-    private String getStringValue(String subjectURI, String propertyURI, Model model) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
-                model.getProperty(propertyURI), (RDFNode) null);
-        try {
-            while(sit.hasNext()) {
-                Statement stmt = sit.next();
-                if(stmt.getObject().isLiteral()) {
-                    return stmt.getObject().asLiteral().getLexicalForm();
-                }
-            }
-            return null;
-        } finally {
-            sit.close();
-        }
-    }
-    
-    private String getURIValue(String subjectURI, String propertyURI, Model model) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
-                model.getProperty(propertyURI), (Resource) null);
-        try {
-            for (Statement stmt : sit.toList()) {
-                if(stmt.getObject().isURIResource()) {
-                    return stmt.getObject().asResource().getURI();
-                }
-            }
-            return null;
-        } finally {
-            sit.close();
-        }
-    }
-    
-    
-    private int getIntValue(String subjectURI, String propertyURI, Model model, int notFound) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
-                model.getProperty(propertyURI), (RDFNode) null);
-        try {
-            while(sit.hasNext()) {
-                Statement stmt = sit.next();
-                if(stmt.getObject().isLiteral()) {
-                    Literal lit = stmt.getObject().asLiteral();
-                    Object obj = lit.getValue();
-                    if(obj instanceof Integer) {
-                        Integer intg = (Integer) obj;
-                        return intg;
-                    }
-                }
-            }
-            return notFound;
-        } finally {
-            sit.close();
-        }
-    }
-    
-    private long getLongValue(String subjectURI, String propertyURI, Model model, long notFound) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
-                model.getProperty(propertyURI), (RDFNode) null);
-        try {
-            for (Statement stmt : sit.toList()) {
-                if(stmt.getObject().isLiteral()) {
-                    Literal lit = stmt.getObject().asLiteral();
-                    Object obj = lit.getValue();
-                    if(obj instanceof Long) {
-                        return (Long) obj;
-                    }
-                    if (obj instanceof Integer) {
-                        return (Integer) obj;
-                    }
-                }
-            }
-            return notFound;
-        } finally {
-            sit.close();
-        }
-    }
-    
-    private boolean getBooleanValue(String subjectURI, String propertyURI, Model model, boolean notFound) {
-        StmtIterator sit = model.listStatements(model.getResource(subjectURI), 
-                model.getProperty(propertyURI), (RDFNode) null);
-        try {
-            for (Statement stmt : sit.toList()) {
-                if(stmt.getObject().isLiteral()) {
-                    Literal lit = stmt.getObject().asLiteral();
-                    Object obj = lit.getValue();
-                    if(obj instanceof Boolean) {
-                        return (Boolean) obj;
-                    }
-                }
-            }
-            return notFound;
-        } finally {
-            sit.close();
-        }
-    }
-    
-    
+
     private class DataTaskPriorityComparator implements Comparator<DataTask> {
 
         public int compare(DataTask o1, DataTask o2) {

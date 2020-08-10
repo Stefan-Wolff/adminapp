@@ -1,5 +1,8 @@
 package org.vivoweb.adminapp.datasource.merge;
 
+/**
+ * @author swolff
+ */
 public class TextMergeAtom extends MergeRuleAtom {
 
     private String mergeDataPropertyURI;

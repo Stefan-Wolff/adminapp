@@ -1,5 +1,10 @@
 package org.vivoweb.adminapp.datasource.merge;
 
+/**
+ * Implementation of a the specific merge pattern "author groups".
+ * 
+ * @author swolff
+ */
 public class AuthorGroupMergeAtom extends TextMergeAtom {
 
     private final int numPublications;

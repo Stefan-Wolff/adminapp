@@ -11,6 +11,8 @@ import edu.cornell.mannlib.vitro.webapp.utils.developer.Key;
 
 /**
  * Disabling of indexing processes.
+ * 
+ * @author swolff
  */
 public class DeveloperDisabledChangeListener extends StatementListener implements ModelChangedListener {
     

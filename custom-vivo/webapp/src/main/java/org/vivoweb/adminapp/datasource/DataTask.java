@@ -7,7 +7,7 @@ import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 /**
  * Abstract class of a data processing task, esp. meant for ingest, merging und publishing tasks.
  * 
- * @author Stefan.Wolff@slub-dresden.de
+ * @author swolff
  */
 public abstract class DataTask {
     

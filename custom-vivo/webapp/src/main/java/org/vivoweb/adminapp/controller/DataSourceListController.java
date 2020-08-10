@@ -22,9 +22,10 @@ import edu.cornell.mannlib.vitro.webapp.controller.freemarker.responsevalues.Tem
 import edu.cornell.mannlib.vitro.webapp.modelaccess.ModelAccess;
 
 /**
- * A controller for retrieving for display lists of available 
- * data, merging and publishing services
- * @author Brian Lowe
+ * A controller for retrieving for display lists of available configuration of
+ * ingest tasks, merging tasks and publishing tasks
+ * 
+ * @author Brian Lowe, swolff
  *
  */
 public class DataSourceListController extends FreemarkerHttpServlet {
