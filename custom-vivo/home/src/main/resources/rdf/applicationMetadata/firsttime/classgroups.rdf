@@ -15,10 +15,10 @@
     xmlns:scires="http://vivoweb.org/ontology/scientific-research#"
     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
     xmlns:swrl="http://www.w3.org/2003/11/swrl#"
-    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" > 
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" >
   <rdf:Description rdf:about="http://vivoweb.org/ontology#vitroClassGrouppublications">
     <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
-    <!-- WheatVIVO modification: change 'research' label to 'publications' -->
+    <!-- adminapp modification: change 'research' label to 'publications' -->
     <rdfs:label xml:lang="en-US">publications</rdfs:label>
     <vitro:modTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2009-12-27T08:36:28</vitro:modTime>
     <rdf:type rdf:resource="http://vitro.mannlib.cornell.edu/ns/vitro/0.7#ClassGroup"/>

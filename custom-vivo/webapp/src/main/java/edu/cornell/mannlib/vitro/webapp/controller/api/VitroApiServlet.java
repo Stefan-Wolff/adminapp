@@ -1,4 +1,4 @@
-/* $This file is distributed under the terms of the license in /doc/license.txt$ */
+/* $This file is distributed under the terms of the license in LICENSE$ */
 
 package edu.cornell.mannlib.vitro.webapp.controller.api;
 
@@ -29,7 +29,7 @@ import edu.cornell.mannlib.vitro.webapp.utils.http.NotAcceptableException;
 
 /**
  * The base class for Vitro servlets that implement the API.
- * 
+ *
  * We don't want the API servlets to extend VitroHttpServlet, because we want
  * the following behavior:
  * <ul>
@@ -39,7 +39,7 @@ import edu.cornell.mannlib.vitro.webapp.utils.http.NotAcceptableException;
  * </ul>
  */
 public class VitroApiServlet extends HttpServlet {
-    
+
 	private static final Log log = LogFactory.getLog(VitroApiServlet.class);
 	private static Set<String> localAddresses;
 	
@@ -62,13 +62,13 @@ public class VitroApiServlet extends HttpServlet {
 	 */
 	protected void confirmAuthorization(HttpServletRequest req,
 			AuthorizationRequest requiredActions) throws AuthException {
-	    
+
 	    // allow requests from localhost to connect without email/password
 	    if(isLocalRequest(req)) {
 	        log.debug("Authorized: request is from localhost");
 	        return;
 	    }
-	    
+
 		String email = req.getParameter("email");
 		String password = req.getParameter("password");
 
@@ -81,7 +81,7 @@ public class VitroApiServlet extends HttpServlet {
 					+ "last names and a valid email address.");
 		}
 
-		if (!auth.isCurrentPassword(account, password)) {
+		if (!auth.isCurrentPasswordArgon2(account, password)) {
 			log.debug("Invalid: '" + email + "'/'" + password + "'");
 			throw new AuthException("email/password combination is not valid");
 		}
@@ -99,7 +99,7 @@ public class VitroApiServlet extends HttpServlet {
 
 		log.debug("Authorized for '" + email + "'");
 	}
-	
+
 	protected boolean isLocalRequest(HttpServletRequest req) {
 	    return localAddresses.contains(req.getRemoteAddr());
 	}

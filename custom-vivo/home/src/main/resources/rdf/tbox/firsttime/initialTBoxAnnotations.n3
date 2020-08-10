@@ -1857,7 +1857,7 @@ vcard:Pager
 
 vivo:Contract
       rdfs:label "Contract"@en-US ;
-      vitro:inClassGroup      <http://vivo.wheatinitiative.org/individual/vitroClassGroupprojects> ;
+      vitro:inClassGroup      <http://vivoweb.org/individual/vitroClassGroupprojects> ;
       vitro:displayLimitAnnot
               "-1"^^xsd:int ;
       vitro:displayRankAnnot
@@ -5236,7 +5236,7 @@ vivo:Grant
               "-1"^^xsd:int ;
       vitro:displayRankAnnot
               "50"^^xsd:int ;
-      vitro:inClassGroup      <http://vivo.wheatinitiative.org/individual/vitroClassGroupprojects> ;
+      vitro:inClassGroup      <http://vivoweb.org/individual/vitroClassGroupprojects> ;
       vitro:hiddenFromDisplayBelowRoleLevelAnnot
               <http://vitro.mannlib.cornell.edu/ns/vitro/role#public> ;
       vitro:hiddenFromPublishBelowRoleLevelAnnot
@@ -6157,7 +6157,7 @@ vcard:postalCode
 
 obo:ERO_0000014
       rdfs:label "Research Project"@en-US ;
-      vitro:inClassGroup  <http://vivo.wheatinitiative.org/individual/vitroClassGroupprojects> ;
+      vitro:inClassGroup  <http://vivoweb.org/individual/vitroClassGroupprojects> ;
       vitro:displayLimitAnnot
               "-1"^^xsd:int ;
       vitro:displayRankAnnot

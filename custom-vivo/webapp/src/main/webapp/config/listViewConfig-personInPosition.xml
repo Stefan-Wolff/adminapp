@@ -51,11 +51,7 @@
             {
                 ?position core:hrJobTitle ?hrJobTitle .
             }
-	    # WheatVIVO extension
-	    OPTIONAL {
-                ?position &lt;http://vivo.wheatinitiative.org/ontology/wi#immediateOrgName&gt; ?immediateOrgName
-	    }
-	    # end WheatVIVO extension
+	    # end adminapp extension
             OPTIONAL
             {
                 ?position core:rank ?rank .
@@ -110,8 +106,7 @@
             ?org obo:BFO_0000050 ?middleOrg .
             ?middleOrg rdfs:label ?middleOrgName .
             ?middleOrg obo:BFO_0000050 ?outerOrg .
-            ?outerOrg rdfs:label ?outerOrgName .
-            ?position &lt;http://vivo.wheatinitiative.org/ontology/wi#immediateOrgName&gt; ?immediateOrgName
+            ?outerOrg rdfs:label ?outerOrgName
         }
         WHERE
         {
@@ -168,16 +163,13 @@
                 ?org a foaf:Organization .
                 ?org rdfs:label ?orgName .
             }
-            # WheatVIVO extension
+            # adminapp extension
 	    UNION
             {
                 ?subject ?property ?position .
                 ?position a core:Position .
-	        OPTIONAL {
-                    ?position &lt;http://vivo.wheatinitiative.org/ontology/wi#immediateOrgName&gt; ?immediateOrgName
-	        }
             }
-            # end WheatVIVO extension
+            # end adminapp extension
             UNION
             {
                 ?subject ?property ?position .

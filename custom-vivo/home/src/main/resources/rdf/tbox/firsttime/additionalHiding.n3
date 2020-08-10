@@ -39,7 +39,7 @@ vivo:assignedBy
    vitro:hiddenFromDisplayBelowRoleLevelAnnot role:nobody ;
    vitro:prohibitedFromUpdateBelowRoleLevelAnnot role:nobody .
 
-# WheatVIVO : Un-hide 'participates in'
+# adminapp : Un-hide 'participates in'
 #<http://purl.obolibrary.org/obo/RO_0000056>
 #   vitro:hiddenFromDisplayBelowRoleLevelAnnot role:nobody ;
 #   vitro:prohibitedFromUpdateBelowRoleLevelAnnot role:nobody .

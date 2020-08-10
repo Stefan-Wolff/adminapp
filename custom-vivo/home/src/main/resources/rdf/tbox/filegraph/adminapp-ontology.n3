@@ -1,4 +1,4 @@
-@prefix : <http://vivo.wheatinitiative.org/ontology/adminapp/> .
+@prefix : <http://vivoweb.org/ontology/adminapp/> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
@@ -6,7 +6,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix vitro: <http://vitro.mannlib.cornell.edu/ns/vitro/0.7#> .
 
-<http://vivo.wheatinitiative.org/ontology/adminapp/> a owl:Ontology ;
+<http://vivoweb.org/ontology/adminapp/> a owl:Ontology ;
         rdfs:label "Admin Application Ontology"@en .
 # 
 # 
@@ -17,19 +17,9 @@
 # #################################################################
 # 
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/deploymentURI
 
-:deploymentURI a owl:DatatypeProperty ;
-        a owl:FunctionalProperty ;
-	rdfs:range xsd:anyURI ;
-	vitro:displayRankAnnot 50 ;
-	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	rdfs:label "deployment URI"@en .
-# 
-# http://vivo.wheatinitiative.org/ontology/adminapp/endpointURI
+
+# http://vivoweb.org/ontology/adminapp/endpointURI
 
 :endpointURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -42,7 +32,7 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "endpoint URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/endpointUpdateURI
+# http://vivoweb.org/ontology/adminapp/endpointUpdateURI
 
 :endpointUpdateURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -54,20 +44,9 @@
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "endpoint update URI"@en .
-# 
-# http://vivo.wheatinitiative.org/ontology/adminapp/graphURI
 
-:graphURI a owl:DatatypeProperty ;
-        a owl:FunctionalProperty ;
-	rdfs:range xsd:anyURI ;
-	vitro:displayRankAnnot 70 ;
-	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	rdfs:label "graph URI"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/password
+# http://vivoweb.org/ontology/adminapp/password
 
 :password a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -79,11 +58,12 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "password"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/priority
+# http://vivoweb.org/ontology/adminapp/priority
 
 :priority a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
-	rdfs:range xsd:int ;
+	rdfs:domain :DataTask ;
+	rdfs:range xsd:integer ;
 	vitro:displayRankAnnot 10 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
@@ -91,10 +71,11 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "priority"@en .
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/serviceURI
+# http://vivoweb.org/ontology/adminapp/serviceURI
 
 :serviceURI a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
+	rdfs:domain :DataIngest ;
 	rdfs:range xsd:anyURI ;
 	vitro:displayRankAnnot 20 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
@@ -102,8 +83,63 @@
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "service URI"@en .
+	
+#
+# http://vivoweb.org/ontology/adminapp/httpMethod
+	
+:httpMethod a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:domain :DataIngest ;
+	rdfs:range xsd:string ;
+	vitro:displayRankAnnot 21 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "HTTP method (GET | POST)"@en .
+	
+#
+# http://vivoweb.org/ontology/adminapp/httpParam
+	
+:httpParam a owl:DatatypeProperty ;
+	rdfs:domain :DataIngest ;
+	rdfs:range xsd:string ;
+	vitro:displayRankAnnot 22 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "HTTP parameter"@en .
+	
+#
+# http://vivoweb.org/ontology/adminapp/httpHeader
+	
+:httpHeader a owl:DatatypeProperty ;
+	rdfs:domain :DataIngest ;
+	rdfs:range xsd:string ;
+	vitro:displayRankAnnot 23 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "HTTP header"@en .
+
+#
+# http://vivoweb.org/ontology/adminapp/responseFormat
+	
+:responseFormat a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:domain :DataIngest ;
+	rdfs:range xsd:string ;
+	vitro:displayRankAnnot 24 ;
+	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	rdfs:label "Response data format (RDF/XML | N-TRIPLE | TURTLE | N3)"@en .
+
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/username
+# http://vivoweb.org/ontology/adminapp/username
 
 :username a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
@@ -115,18 +151,12 @@
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:label "username"@en .
 
-:queryTerm a owl:DatatypeProperty ;
-	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-	rdfs:domain :QueryTermSet ;
-	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	rdfs:label "query term" .
+# 
+# http://vivoweb.org/ontology/adminapp/lastUpdate
 
 :lastUpdate a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
         vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-        rdfs:domain :DataSource ;
         rdfs:range xsd:dateTime ;
         rdfs:label "last update" ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
@@ -134,16 +164,67 @@
         vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#nobody> ;
         vitro:displayRankAnnot 30 .
 
+# 
+# http://vivoweb.org/ontology/adminapp/nextUpdate
+
 :nextUpdate a owl:DatatypeProperty ;
         a owl:FunctionalProperty ;
         vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-        rdfs:domain :DataSource ;
+        rdfs:domain :DataTask ;
 	rdfs:range xsd:dateTime ;
         rdfs:label "next scheduled update" ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
         vitro:displayRankAnnot 31 .
+
+# 
+# http://vivoweb.org/ontology/adminapp/resultNum
+
+:resultNum a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:range xsd:integer ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:displayRankAnnot 40 ;
+	rdfs:label "result number"@en .
+	
+# 
+# http://vivoweb.org/ontology/adminapp/progress
+
+:progress a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:range xsd:integer ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:displayRankAnnot 45 ;
+	rdfs:label "progress (percent)"@en .
+	
+# 
+# http://vivoweb.org/ontology/adminapp/isOK
+
+:isOK a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:range xsd:boolean ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:displayRankAnnot 41 ;
+	rdfs:label "last run ok?"@en .
+	
+# 
+# http://vivoweb.org/ontology/adminapp/message
+
+:message a owl:DatatypeProperty ;
+        a owl:FunctionalProperty ;
+	rdfs:range xsd:string ;
+	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
+	vitro:displayRankAnnot 42 ;
+	rdfs:label "message of last run"@en .
 
 # 
 # 
@@ -155,43 +236,40 @@
 # #################################################################
 # 
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/DataSource
+# http://vivoweb.org/ontology/adminapp/DataTask
 
-:DataSource a owl:Class ;
-	rdfs:subClassOf _:genid1 .
+:DataTask a owl:Class ;
+	rdfs:label "Data Task"@en .
 
-_:genid1 a owl:Restriction ;
-	owl:onProperty :deploymentURI ;
-	owl:someValuesFrom xsd:anyURI .
-
-:DataSource rdfs:subClassOf _:genid2 .
-
-_:genid2 a owl:Restriction ;
-	owl:onProperty :graphURI ;
-	owl:someValuesFrom xsd:anyURI .
-
-:DataSource rdfs:subClassOf _:genid3 .
-
-_:genid3 a owl:Restriction ;
-	owl:onProperty :priority ;
-	owl:someValuesFrom xsd:int .
-
-:DataSource rdfs:subClassOf _:genid4 .
-
-_:genid4 a owl:Restriction ;
-	owl:onProperty :serviceURI ;
-	owl:allValuesFrom xsd:anyURI .
-
-:DataSource rdfs:label "Data Source"@en .
-
-:MergeDataSource rdfs:label "Merge Data Source" ;
-        a owl:Class ; rdfs:subClassOf :DataSource .
-
-:PublishDataSource rdfs:label "Publish Data Source" ;
-        a owl:Class ; rdfs:subClassOf :DataSource .
 
 # 
-# http://vivo.wheatinitiative.org/ontology/adminapp/SparqlEndpoint
+# http://vivoweb.org/ontology/adminapp/DataIngest
+
+:DataIngest a owl:Class ;
+	rdfs:subClassOf :DataTask ;
+	rdfs:label "Data Ingest"@en .
+
+# 
+# http://vivoweb.org/ontology/adminapp/DataMerge
+
+:DataMerge a owl:Class ;
+	rdfs:subClassOf :DataTask ;
+	rdfs:label "Data Merge"@en .
+
+# 
+# http://vivoweb.org/ontology/adminapp/DataPublish
+
+:DataPublish a owl:Class ;
+	rdfs:label "Data Publish" ;
+	rdfs:subClassOf :DataTask ;
+	rdfs:subClassOf _:genid10 .
+	
+_:genid10 a owl:Restriction ;
+	owl:onProperty :publishToEndpoint ;
+	owl:allValuesFrom :SparqlEndpoint .
+	
+# 
+# http://vivoweb.org/ontology/adminapp/SparqlEndpoint
 
 :SparqlEndpoint a owl:Class ;
 	rdfs:subClassOf _:genid5 .
@@ -218,27 +296,13 @@ _:genid8 a owl:Restriction ;
 	owl:onProperty :username ;
 	owl:allValuesFrom xsd:string .
 
-:DataSource rdfs:subClassOf _:genid9 .
+:DataTask rdfs:subClassOf _:genid9 .
 
 _:genid9 a owl:Restriction ;
 	owl:onProperty :usesSparqlEndpoint ;
 	owl:allValuesFrom :SparqlEndpoint .
 
 :SparqlEndpoint rdfs:label "Sparql Endpoint"@en .
-
-:QueryTermSet a owl:Class ;
-    rdfs:label "Query Term Set"@en;
-    rdfs:subClassOf _:genid10 .
-
-_:genid10 a owl:Restriction ;
-        owl:onProperty :queryTerm ;
-	owl:minCardinality "1"^^xsd:integer .
-
-:DataSource rdfs:subClassOf _:genid11 .
-
-_:genid11 a owl:Restriction ;
-	owl:onProperty :usesQueryTermSet ;
-	owl:allValuesFrom :QueryTermSet .
 
 :UpdateFrequency a owl:Class ;
         rdfs:label "Update Frequency" .
@@ -251,6 +315,7 @@ _:genid11 a owl:Restriction ;
 
 :updateFrequencyMonthly a :UpdateFrequency ;
         rdfs:label "monthly" .
+
 
 #####################
 # Object properties #
@@ -266,19 +331,19 @@ _:genid11 a owl:Restriction ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	rdfs:range :SparqlEndpoint .
 
-:usesQueryTermSet a owl:ObjectProperty ;
-        rdfs:label "query term set"@en ;
-	vitro:displayRankAnnot 65 ;
+:publishToEndpoint a owl:ObjectProperty ;
+        rdfs:label "publish to SPARQL endpoint"@en ;
+	vitro:displayRankAnnot 70 ;
 	vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
 	vitro:offerCreateNewOptionAnnot true ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
-	rdfs:range :QueryTermSet .
+	rdfs:range :SparqlEndpoint .
 
 :updateFrequency a owl:ObjectProperty ;
         vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-        rdfs:domain :DataSource ;
+        rdfs:domain :DataTask ;
 	rdfs:range :UpdateFrequency ;
         rdfs:label "update frequency" ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
@@ -288,14 +353,11 @@ _:genid11 a owl:Restriction ;
 
 :scheduleAfter a owl:ObjectProperty ;
         vitro:inPropertyGroupAnnot <http://vivoweb.org/ontology#vitroPropertyGroupoverview> ;
-        rdfs:domain :DataSource ;
-	rdfs:range :DataSource ;
+        rdfs:domain :DataTask ;
+	rdfs:range :DataTask ;
         rdfs:label "schedule to run immediately after" ;
 	vitro:prohibitedFromUpdateBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromDisplayBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
 	vitro:hiddenFromPublishBelowRoleLevelAnnot <http://vitro.mannlib.cornell.edu/ns/vitro/role#editor> ;
         vitro:displayRankAnnot 34 .
 
-
-# 
-# Generated by the OWL API (version 4.2.5.20160517-0735) https://github.com/owlcs/owlapi

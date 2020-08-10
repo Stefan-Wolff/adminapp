@@ -1,4 +1,4 @@
-# $This file is distributed under the terms of the license in /doc/license.txt$ 
+# $This file is distributed under the terms of the license in LICENSE$
 
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix display: <http://vitro.mannlib.cornell.edu/ontologies/display/1.1#> .
@@ -28,57 +28,71 @@
 
 #### Default Menu ####
 
-display:DefaultMenu 
+display:DefaultMenu
     a  display:MainMenu ;
     rdfs:label "Default Menu" ;
+											   
     display:hasElement display:HomeMenuItem ;
     display:hasElement display:OrganizationsMenuItem ;
     display:hasElement display:PeopleMenuItem ;
     display:hasElement display:ResearchMenuItem .
+													  
 
 #### Menu Items for Default Menu ####
 
-display:HomeMenuItem 
+display:HomeMenuItem
     a display:NavigationElement ;
     display:menuPosition 1;
     display:linkText "Home";
     display:toPage display:Home .
 
-display:PeopleMenuItem 
+display:PeopleMenuItem
     a display:NavigationElement ;
     display:menuPosition 2;
     display:linkText "People";
     display:toPage display:People .
 
-display:OrganizationsMenuItem 
+display:OrganizationsMenuItem
     a display:NavigationElement ;
     display:menuPosition 3;
     display:linkText "Organisations";
     display:toPage display:Organizations .
 
-display:ResearchMenuItem     
+display:ResearchMenuItem
     a display:NavigationElement ;
     display:menuPosition 4;
     display:linkText "Publications";
     display:toPage display:Research .
 
+					  
+								 
+						   
+							  
+								   
+
+							 
+								 
+						   
+									  
+										  
+
 display:Home
-    a display:HomePage ;    
+    a display:HomePage ;
     a display:Page ;
-    display:title "Home" ;    
+    display:title "Home" ;
     display:urlMapping "/" ;
     display:hasDataGetter display:homeDataGetter;
     display:cannotDeletePage "true" .
 
-display:Events 
-    a display:Page ;    
+display:Events
+    a display:Page ;
     a display:ClassGroupPage;
     display:forClassGroup vivoweb:vitroClassGroupevents ;
     display:title "Events" ;
-    display:urlMapping "/events" ; 
+    display:urlMapping "/events" ;
     display:hasDataGetter display:eventsDataGetter .
 
-display:Organizations 
+display:Organizations
     a display:Page ;
     a display:ClassGroupPage;
     display:forClassGroup vivoweb:vitroClassGrouporganizations ;
@@ -86,16 +100,16 @@ display:Organizations
     display:urlMapping "/organisations";
     display:hasDataGetter display:organizationsDataGetter .
 
-display:People 
-    a display:Page ;    
+display:People
+    a display:Page ;
     a display:ClassGroupPage;
     display:forClassGroup vivoweb:vitroClassGrouppeople ;
     display:title "People" ;
     display:urlMapping "/people" ;
    	display:hasDataGetter display:peopleDataGetter .
 
-display:Research 
-    a display:Page ;        
+display:Research
+    a display:Page ;
     a display:ClassGroupPage;
     display:forClassGroup vivoweb:vitroClassGrouppublications ;
     display:title "Publications" ;
