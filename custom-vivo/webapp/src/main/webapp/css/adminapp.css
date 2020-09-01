@@ -64,4 +64,6 @@ table.adminTable thead td {
 	margin-right: 10px;
 }
 
-	
+.processing-tabs a.adminapp-active {
+	color: #064d68;
+}

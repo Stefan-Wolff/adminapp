@@ -1,15 +1,15 @@
 
 
-function showHeadTabs() {
+function showHeadTabs(urlBase) {
 	var tabs;
 	var type = window.localStorage.getItem("bc_type_0");
 	
 	if ("Data Ingest" == type) {
-		tabs = 'Ingest | <a href="${urls.base}/listDataSources?type=merge">Merge</a> | <a href="${urls.base}/listDataSources?type=publish">Publish</a>';
+		tabs = '<a href="' + urlBase + '/listDataSources?" class="adminapp-active">Ingest</a> | <a href="' + urlBase + '/listDataSources?type=merge">Merge</a> | <a href="' + urlBase + '/listDataSources?type=publish">Publish</a>';
 	} else if ("Data Merge" == type) {
-		tabs = '<a href="${urls.base}/listDataSources?">Ingest</a> | Merge | <a href="${urls.base}/listDataSources?type=publish">Publish</a>';
+		tabs = '<a href="' + urlBase + '/listDataSources?">Ingest</a> | <a href="' + urlBase + '/listDataSources?type=merge" class="adminapp-active">Merge</a> | <a href="' + urlBase + '/listDataSources?type=publish">Publish</a>';
 	} else {
-		tabs = '<a href="${urls.base}/listDataSources?">Ingest</a> | <a href="${urls.base}/listDataSources?type=merge">Merge</a> | Publish';
+		tabs = '<a href="' + urlBase + '/listDataSources?">Ingest</a> | <a href="' + urlBase + '/listDataSources?type=merge">Merge</a> | <a href="' + urlBase + '/listDataSources?type=publish" class="adminapp-active">Publish</a>';
 	}
 	
 	$("#processing-tabs").html(tabs);
