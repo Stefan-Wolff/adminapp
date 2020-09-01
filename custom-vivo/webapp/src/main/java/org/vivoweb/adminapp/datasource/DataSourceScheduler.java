@@ -28,7 +28,7 @@ import edu.cornell.mannlib.vitro.webapp.rdfservice.ModelChange.Operation;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.RDFService;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.RDFServiceException;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.impl.RDFServiceUtils;
-import edu.cornell.mannlib.vitro.webapp.utils.developer.listeners.DeveloperDisabledChangeListener;
+import edu.cornell.mannlib.vitro.webapp.searchindex.IndexingChangeListener;
 import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread;
 import edu.cornell.mannlib.vitro.webapp.utils.threads.VitroBackgroundThread.WorkLevel;
 
@@ -259,7 +259,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             dataTaskDao.saveProgress(dataSourceURI, 0);
             
             if (!task.indexingEnabled()) {
-                DeveloperDisabledChangeListener.setEnabled(false);
+                IndexingChangeListener.setEnabled(false);
             }
             
             long resultNum = 0;
@@ -276,7 +276,7 @@ public class DataSourceScheduler implements ServletContextListener, ChangeListen
             task.getStatus().setTotalRecords(resultNum);
             dataTaskDao.saveTaskStatus(task.getStatus(), dataSourceURI);
             
-            DeveloperDisabledChangeListener.setEnabled(true);
+            IndexingChangeListener.setEnabled(true);
             
             schedule(task);
             

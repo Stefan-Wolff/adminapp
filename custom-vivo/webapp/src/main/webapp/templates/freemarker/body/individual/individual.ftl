@@ -18,7 +18,7 @@
 	
 	<script>
 		addCurPage(document.location, "${title?html}", "${mostSpecType}");
-		showHeadTabs();
+		showHeadTabs("${urls.base}");
 		showBreadCrumb();
 	</script>
 </#if>

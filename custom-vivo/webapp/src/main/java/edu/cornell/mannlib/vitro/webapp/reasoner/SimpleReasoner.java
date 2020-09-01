@@ -46,6 +46,7 @@ import edu.cornell.mannlib.vitro.webapp.rdfservice.RDFServiceException;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.adapters.VitroModelFactory;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.impl.RDFServiceUtils;
 import edu.cornell.mannlib.vitro.webapp.rdfservice.impl.jena.model.RDFServiceModel;
+import edu.cornell.mannlib.vitro.webapp.searchindex.IndexingChangeListener;
 
 /**
  * Allows for real-time incremental materialization or retraction of RDFS-
@@ -163,6 +164,11 @@ public class SimpleReasoner extends StatementListener
     }
 
     public void notifyModelChange(ModelChange modelChange) {
+        // adminapp mod : temporary disable reasoning
+        if (!IndexingChangeListener.isEnabled()) {
+            return;
+        }
+        
         if(isABoxInferenceGraph(modelChange.getGraphURI())
                 || isTBoxGraph(modelChange.getGraphURI())) {
             return;
@@ -189,6 +195,11 @@ public class SimpleReasoner extends StatementListener
      */
     @Override
     public void addedStatement(Statement stmt) {
+        // adminapp mod : temporary disable reasoning
+        if (!IndexingChangeListener.isEnabled()) {
+            return;
+        }
+        
         // adminapp mod : ignore sameAs
         if(OWL.sameAs.equals(stmt.getPredicate())) {
             return;
@@ -204,6 +215,11 @@ public class SimpleReasoner extends StatementListener
      */
     @Override
     public void removedStatement(Statement stmt) {
+        // adminapp mod : temporary disable reasoning
+        if (!IndexingChangeListener.isEnabled()) {
+            return;
+        }
+        
          // adminapp mod : ignore sameAs
         if(OWL.sameAs.equals(stmt.getPredicate())) {
             return;
