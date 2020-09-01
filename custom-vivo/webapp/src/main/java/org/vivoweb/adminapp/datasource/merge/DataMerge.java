@@ -11,6 +11,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,15 +25,18 @@ import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDFS;
 import org.vivoweb.adminapp.datasource.DataTask;
 import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
 import org.vivoweb.adminapp.datasource.util.RDFUtils;
+import org.vivoweb.adminapp.datasource.util.sparql.LevenshteinFunction;
 import org.vivoweb.adminapp.datasource.util.sparql.SparqlEndpoint;
 
 /**
@@ -66,9 +70,19 @@ public class DataMerge extends DataTask {
     private static final String OBJECTPROPERTYMERGEATOM = DataTaskDao.ADMIN_APP_TBOX + "ObjectPropertyMergeAtom";
 
     private static final String BASIC_SAMEAS_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/basicSameAs";
-    private static final String MATCHVALUE_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/basicMatchValue";
+    private static final String NAMEVARIANT_GRAPH = "http://vitro.mannlib.cornell.edu/a/graph/nameVariant";
+
+    private static String LEVENSHTEIN_URI = "http://vivo.adminapp.local/function/" + LevenshteinFunction.class.getSimpleName();
 
     private final RDFUtils rdfUtils = new RDFUtils();
+    
+    
+    
+    static {
+        FunctionRegistry.get().put(LEVENSHTEIN_URI, LevenshteinFunction.class);
+    }
+    
+
     
     public DataMerge(String taskUri) {
         super(taskUri);
@@ -88,11 +102,9 @@ public class DataMerge extends DataTask {
         Model differentFromModel = getDifferentFromModel(endpoint);
 
         log.info("adding basic sameAs assertions");
+        //log.info("skip: adding basic sameAs assertions");
         addBasicSameAsAssertions(endpoint);
-        
-        log.info("clean up old prepared data structure");
-        endpoint.clear(MATCHVALUE_GRAPH);
-        
+
         log.info("Clearing previous merge state");
         List<MergeRule> mergeRules = new ArrayList<MergeRule>();
         for (Resource mergeRule : getMergeRuleURIs(getURI(), endpoint)) {
@@ -113,6 +125,10 @@ public class DataMerge extends DataTask {
         for (MergeRule rule : mergeRules) {
             String mergeRuleURI = rule.getURI();
             log.info("Processing rule " + mergeRuleURI);
+            
+            log.info("clean up old prepared data structure");
+            //log.info("skip: clean up old prepared data structure");
+            endpoint.clear(NAMEVARIANT_GRAPH);
             
             log.info("Prepare data structure ..");
             prepareDataStructure(rule, endpoint);
@@ -151,52 +167,46 @@ public class DataMerge extends DataTask {
     }
 
     
-    private void prepareDataStructure(MergeRule rule, SparqlEndpoint endpoint) {
+    private void prepareDataStructure(MergeRule rule, SparqlEndpoint endpoint) throws IOException {
         NameVariantBuilder nameVariant = new NameVariantBuilder();
         
         for (MergeRuleAtom atom : rule.getAtoms()) {
             if (atom instanceof TextMergeAtom) {
                 TextMergeAtom textMergeAtom = (TextMergeAtom) atom;
-                if (!textMergeAtom.nameVariants() && 100 == textMergeAtom.getMatchDegree()) {
+                if (!textMergeAtom.nameVariants()) {
                     continue;
                 }
                 
                 StringBuilder query = new StringBuilder();
-                query.append("CONSTRUCT { ?x <").append(textMergeAtom.getMergeDataPropertyURI()).append("> ?y } WHERE { \n")
+                query.append("SELECT ?x ?y WHERE { \n")
                      .append("  ?x a <").append(rule.getMergeClassURI()).append("> . \n")
                      .append("  ?x <").append(textMergeAtom.getMergeDataPropertyURI()).append("> ?y . \n")
-                     .append("} \n");
+                     .append("}");
                 
                 String queryString = query.toString();
                 log.info("Preparation query: " + queryString);
                 
-                Model source = endpoint.construct(queryString);
                 Model target = ModelFactory.createDefaultModel();
+                Property predicate = target.createProperty(textMergeAtom.getMergeDataPropertyURI());
+                SolutionIterator iterator = new SolutionIterator(endpoint, queryString);
                 
-                StmtIterator stmtIt = source.listStatements();
                 long stmtCount = 0;
-                while (stmtIt.hasNext()) {
-                    Statement stmt = stmtIt.next();
-                    String objValue = stmt.getString();
-                    objValue = objValue.toLowerCase().trim();
-                 
-                    if (textMergeAtom.nameVariants()) {
-                        objValue = nameVariant.build(objValue);
-                    }
+                QuerySolution sol;
+                while (null != (sol = iterator.next())) {
+                    Resource subject = sol.get("x").asResource();
+                    String objValue = sol.get("y").toString();
+                    String variant = nameVariant.build(objValue);
 
-                    List<String> values = createMatchValues(objValue, textMergeAtom.getMatchDegree());
-                    for (String value : values) {
-                        target.add(stmt.getSubject(), stmt.getPredicate(), value);
-                        
-                        if (0 == (SparqlEndpoint.CHUNK_SIZE % ++stmtCount)) {
-                            endpoint.writeModel(target, MATCHVALUE_GRAPH);
-                            target.removeAll();
-                        }
+                    target.add(subject, predicate, variant);
+                    
+                    if (0 == (SparqlEndpoint.CHUNK_SIZE % ++stmtCount)) {
+                        endpoint.writeModel(target, NAMEVARIANT_GRAPH);
+                        target.removeAll();
                     }
                 }
                 
                 if (0 != target.size()) {
-                    endpoint.writeModel(target, MATCHVALUE_GRAPH);
+                    endpoint.writeModel(target, NAMEVARIANT_GRAPH);
                 }
             }
         }
@@ -370,20 +380,26 @@ public class DataMerge extends DataTask {
 
 
     private void putObjectPropertySameAs(ObjectPropertyMergeAtom atom, StringBuilder result) throws IOException {
-        String varNameX = buildVarNameFromURI(atom.getMergeObjectPropertyURI());
-        String varNameY = varNameX + "Y";
+        String varName = buildVarNameFromURI(atom.getMergeObjectPropertyURI());
         
-        result.append("    ?x <").append(atom.getMergeObjectPropertyURI()).append("> ?").append(varNameX).append(" . \n")
-              .append("    ?y <").append(atom.getMergeObjectPropertyURI()).append("> ?").append(varNameY).append(" . \n") 
-              .append("    ?").append(varNameX).append(" <").append(OWL.sameAs.getURI()).append("> ?").append(varNameY).append(" . \n");
+        result.append("    ?x <").append(atom.getMergeObjectPropertyURI()).append("> ?").append(varName).append(" . \n")
+              .append("    ?y <").append(atom.getMergeObjectPropertyURI()).append("> ?").append(varName).append(" . \n");
     }
 
     
     private void putDataPropertySameAs(TextMergeAtom atom, StringBuilder result) {
-        String varName = buildVarNameFromURI(atom.getMergeDataPropertyURI());
+        String varName1 = buildVarNameFromURI(atom.getMergeDataPropertyURI());
+        String varName2 = varName1 + "2";
         
-        result.append("    ?x <").append(atom.getMergeDataPropertyURI()).append("> ?").append(varName).append(" . \n")
-              .append("    ?y <").append(atom.getMergeDataPropertyURI()).append("> ?").append(varName).append(" . \n");
+        result.append("    ?x <").append(atom.getMergeDataPropertyURI()).append("> ?").append(varName1).append(" . \n")
+              .append("    ?y <").append(atom.getMergeDataPropertyURI()).append("> ?").append(varName2).append(" . \n")
+              .append("    FILTER((lcase(str(?").append(varName1).append(")) = lcase(str(?").append(varName2).append(")))");
+        
+        if (100 > atom.getMatchDegree()) {
+            result.append(" || ").append("(<").append(LEVENSHTEIN_URI).append(">(?").append(varName1).append(", ?").append(varName2).append(", ").append(atom.getMatchDegree()).append("))");
+        }
+
+        result.append(") . \n");
     }
     
     private void putAuthorGroupSameAs(AuthorGroupMergeAtom atom, String mergeClassRuleURI, StringBuilder result) {
@@ -412,18 +428,24 @@ public class DataMerge extends DataTask {
                 if (i+1 < atom.getNumPublications()) {
                     String name2 = "name_" + (i+1) + "_" + j;
                     
-                    result.append("    FILTER(").append(personNameVar).append(" = ").append(name2).append(") \n");
+                    result.append("    FILTER((lcase(str(?").append(personNameVar).append(")) = lcase(str(?").append(name2).append(")))");
+                    
+                    if (100 > atom.getMatchDegree()) {
+                        result.append(" || ").append("(<").append(LEVENSHTEIN_URI).append(">(?").append(personNameVar).append(", ?").append(name2).append(", ").append(atom.getMatchDegree()).append("))");
+                    }
+                    
+                    result.append(") . \n");
                 }
                 
                 for (int k=j+1; k<atom.getNumPersons(); k++) {
-                    result.append("FILTER ( ?").append(personNameVar).append(" != ?name_").append(i).append("_").append(k).append(" ) . \n");
+                    result.append("    FILTER (?").append(personNameVar).append(" != ?name_").append(i).append("_").append(k).append(") . \n");
                 }
                 
             }
             
             for (int j=0; j<atom.getNumPublications(); j++) {
                 if (i != j) {
-                    result.append("FILTER NOT EXISTS { ?doc_").append(i).append(" <http://www.w3.org/2002/07/owl#sameAs> ?doc_").append(j).append(" } \n");
+                    result.append("    FILTER NOT EXISTS { ?doc_").append(i).append(" <http://www.w3.org/2002/07/owl#sameAs> ?doc_").append(j).append(" } \n");
                 }
             }
 
@@ -719,4 +741,49 @@ public class DataMerge extends DataTask {
 
     }
 
+    
+    private class SolutionIterator  {
+
+        private static final int BATCH_SIZE = 5000;
+
+        private final SparqlEndpoint endpoint;
+        private final String query;
+
+        private final Queue<QuerySolution> data = new LinkedList<>();
+        int offset = 0;
+
+        
+        public SolutionIterator(SparqlEndpoint endpoint, String query) {
+            this.query = query;
+            this.endpoint = endpoint;
+            
+        }
+        
+        private boolean loadNext() throws IOException {            
+            List<QuerySolution> results = endpoint.listResults(query + " LIMIT " + BATCH_SIZE + " OFFSET " + offset);
+            for (QuerySolution solution : results) {
+                data.add(solution);
+            }
+            
+            offset += BATCH_SIZE;
+
+            return !results.isEmpty();
+        }  
+        
+        public QuerySolution next() throws IOException {
+            QuerySolution result = data.poll();
+            
+            if (null == result) {
+                boolean next = loadNext();
+                
+                if (next) {
+                    result = data.poll();
+                }
+            }
+            
+            return result;
+        }
+
+        
+    }
 }
