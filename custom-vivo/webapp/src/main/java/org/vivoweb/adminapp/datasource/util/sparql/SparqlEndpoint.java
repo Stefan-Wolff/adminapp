@@ -16,6 +16,7 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.vivoweb.adminapp.datasource.SparqlEndpointParams;
 import org.vivoweb.adminapp.datasource.dao.DataTaskDao;
@@ -165,16 +166,71 @@ public class SparqlEndpoint  extends HttpUtils implements ModelConstructor {
     } 
        
     /**
+     * An alternative to CLEAR, which is very inefficient with VIVO-based 
+     * endpoints
+     * @param graphURI
+     * @throws IOException 
+     */
+    public void clearGraph(String graphURI) throws IOException {
+        // retrieve individual URIs in batches of 1000
+        int batchSize = 1000;
+        log.info("Clearing graph " + graphURI + " in batches of " + batchSize + 
+                " individuals");
+        boolean getNextBatch = true;
+        do {
+            String individualsBatch = "SELECT DISTINCT ?s WHERE { \n" +
+                    "    GRAPH <" + graphURI + "> { \n" +
+                    "        ?s ?p ?o \n" +
+                    "    } \n" +
+                    "} LIMIT " + batchSize;
+            log.debug(individualsBatch);
+            List<QuerySolution> solutions = listResults(individualsBatch);
+            StringBuilder deletion = new StringBuilder();
+            for (QuerySolution sol : solutions) {
+                Resource s = sol.getResource("s");
+                if(s.isURIResource()) {
+                    deletion.append("DELETE { \n")
+                    .append("    GRAPH<").append(graphURI).append(">")
+                    .append(" { <").append(s.getURI()).append("> ?p ?o } \n")
+                    .append("} WHERE { \n")
+                    .append("    GRAPH<").append(graphURI).append(">")
+                    .append(" { <").append(s.getURI()).append("> ?p ?o } \n")
+                    .append("}; \n");
+                }
+            }
+            String deletionStr = deletion.toString();
+            log.debug(deletionStr);
+            if(deletionStr.isEmpty()) {
+                getNextBatch = false;
+            } else {
+                try {
+                    update(deletionStr);    
+                } catch (Exception e) {
+                    log.info("Failed to delete batch of triples", e);
+                }
+            }            
+        } while (getNextBatch);
+        // TODO check that count is decreasing after each N batches, otherwise 
+        // terminate loop
+        // Finally, issue the regular CLEAR to flush out anything remaining
+        // (e.g. blank nodes)
+        //log.info("Clearing graph " + graphURI);
+        log.info("Calling final clear");
+        update("CLEAR GRAPH <" + graphURI + ">");
+    }
+    
+    /**
      * Removes all triples from given graph.
      * @param graphURI
+     * @throws IOException 
      */
-    public void clear(String graphURI) {
-        long startTime = System.currentTimeMillis();
+    public void clear(String graphURI) throws IOException {
+        clearGraph(graphURI);                                   // memory problems with VIVO-based implementation, so try do clearing here
         
-        log.info("Clearing graph " + graphURI);
-        update("CLEAR GRAPH <" + graphURI + ">");
-        
-        log.info(".. cleared in " + (System.currentTimeMillis() - startTime) / 1000 + "s");
+//        long startTime = System.currentTimeMillis();
+//        log.info("Clearing graph " + graphURI);
+//        update("CLEAR GRAPH <" + graphURI + ">");
+//        log.info(".. cleared in " + (System.currentTimeMillis() - startTime) / 1000 + "s");
     }
     
     

@@ -74,7 +74,7 @@ public class DataPublish extends DataTask {
 
         Model buffer = ModelFactory.createDefaultModel();
         int individualCount = 0;
-        IndividualIterator indIt = new IndividualIterator(sourceEndpoint);
+        PublishIterator indIt = new PublishIterator(sourceEndpoint);
         int individualNum = indIt.init();
         Set<Resource> singleSameAs = new HashSet<>();
         
@@ -108,7 +108,7 @@ public class DataPublish extends DataTask {
     /**
      * Loads all triples of given URIs and changes there URIs all to one result URI.
      */
-    private Resource mergeData(Resource individual, SparqlEndpoint endpoint, IndividualIterator indIt, Model result, Set<Resource> singleSameAs, boolean inRecursion) throws IOException {
+    private Resource mergeData(Resource individual, SparqlEndpoint endpoint, PublishIterator indIt, Model result, Set<Resource> singleSameAs, boolean inRecursion) throws IOException {
         log.debug("merge individual " + individual.getURI());
         
         List<Resource> sameAsURIs;                                    // save stack memory
@@ -202,7 +202,7 @@ public class DataPublish extends DataTask {
     }
     
     
-    private class IndividualIterator  {
+    private class PublishIterator  {
 
         private static final int INDIVIDUAL_BATCH_SIZE = 5000;
         
@@ -222,7 +222,7 @@ public class DataPublish extends DataTask {
         private SparqlEndpoint endpoint;
 
         
-        public IndividualIterator(SparqlEndpoint endpoint) {
+        public PublishIterator(SparqlEndpoint endpoint) {
             this.endpoint = endpoint;
         }
         
