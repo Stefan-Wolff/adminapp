@@ -1,16 +1,17 @@
 package org.vivoweb.adminapp.datasource.merge;
 
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 public class MergeRule {
 
     private final String URI;
     private String mergeClassURI;
     private int priority;
-    private List<MergeRuleAtom> atoms = new ArrayList<MergeRuleAtom>();
+    private Collection<MergeRuleAtom> atoms = new TreeSet<MergeRuleAtom>(new MergeAtomComparator());
     private Map<String, MergeRule> linkedRules = new HashMap<String, MergeRule>(); // <linkingObjectPropertyURI, linkedRule>
     
     public MergeRule(String uri) {
@@ -37,7 +38,7 @@ public class MergeRule {
         this.priority = priority;
     }
 
-    public List<MergeRuleAtom> getAtoms() {
+    public Collection<MergeRuleAtom> getAtoms() {
         return this.atoms;
     }
 
@@ -52,4 +53,17 @@ public class MergeRule {
     public Map<String, MergeRule> getLinkedRules() {
         return linkedRules;
     }
+    
+    
+    private class MergeAtomComparator implements Comparator<MergeRuleAtom> {
+
+        @Override
+        public int compare(MergeRuleAtom o1, MergeRuleAtom o2) {
+            int prio1 = o1 instanceof ObjectPropertyMergeAtom ? 1 : 0;
+            int prio2 = o2 instanceof ObjectPropertyMergeAtom ? 1 : 0;
+
+            return prio1 - prio2;
+        }
+    }
+    
 }
